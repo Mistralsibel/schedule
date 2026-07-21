@@ -1,449 +1,2312 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>四时花韵｜花卉古诗文3D展厅</title>
-<script type="importmap" crossorigin="anonymous">
-{
-  "imports": {
-    "three": "https://esm.sh/three@0.164.1/build/three.module.js",
-    "three/addons/": "https://esm.sh/three@0.164.1/examples/jsm/"
-  }
-}
-</script>
-<style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: "思源宋体", "Noto Serif SC", SimSun, serif;
-}
-body {
-  overflow: hidden;
-  background: #f8f6f0;
-  height: 100vh;
-  color: #2c2c2c;
-}
-#canvas-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-}
-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+    <title>Chrono · 治愈3D日程管理器</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- 防主题闪烁：页面渲染前立即读取主题偏好 -->
+    <script>
+        (function() {
+            const saved = localStorage.getItem("chrono-theme");
+            if (saved === "dark") document.documentElement.dataset.theme = "dark";
+        })();
+    </script>
+    <style>
+        /* ============================================================
+           CHRONO · ETHEREAL GARDEN 设计系统
+           世界级玻璃态美学 — 空灵庭园
+           ============================================================ */
 
-/* 右侧季节导航栏 */
-.season-nav {
-  position: fixed;
-  right: 24px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.season-btn {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 1px solid rgba(130, 110, 90, 0.35);
-  background: rgba(255,255,255,0.65);
-  backdrop-filter: blur(6px);
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.4s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.season-btn:hover {
-  background: rgba(255,255,255,0.9);
-  transform: scale(1.08);
-}
-.season-btn.active {
-  background: rgba(220, 200, 175, 0.8);
-  border-color: #967c5c;
-}
+        /* ---------- RESET ---------- */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-/* 古风卷轴容器 */
-.scroll-container {
-  position: fixed;
-  left: 50%;
-  top: 52%;
-  transform: translate(-50%, -50%);
-  width: 0;
-  height: 72vh;
-  background: linear-gradient(90deg, #e9e2d5 0%, #f5efe4 50%, #e9e2d5 100%);
-  border-left: 12px solid #a88e6f;
-  border-right: 12px solid #a88e6f;
-  border-radius: 4px;
-  z-index: 8;
-  overflow: hidden;
-  transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
-  pointer-events: none;
-}
-.scroll-container.open {
-  width: min(82vw, 1100px);
-  pointer-events: all;
-}
-.scroll-inner {
-  width: 100%;
-  height: 100%;
-  padding: 40px 60px;
-  overflow-y: auto;
-  opacity: 0;
-  transition: opacity 0.8s ease 0.6s;
-}
-.scroll-container.open .scroll-inner {
-  opacity: 1;
-}
-.scroll-close {
-  position: absolute;
-  top: 16px;
-  right: 20px;
-  font-size: 22px;
-  cursor: pointer;
-  color: #665544;
-}
+        /* ---------- DESIGN TOKENS :root (浅色) ---------- */
+        :root {
+            /* 主色调 — 晨雾蓝 */
+            --accent: #6D94C0;
+            --accent-soft: #8BAFD6;
+            --accent-warm: #B8A88A;
+            --accent-deep: #4A7098;
 
-/* 卷轴花卉诗文卡片 */
-.flower-card {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  margin-bottom: 48px;
-  padding-bottom: 32px;
-  border-bottom: 1px solid rgba(140, 120, 100, 0.2);
-}
-.flower-img-box {
-  width: 220px;
-  height: 220px;
-  background: rgba(255,255,255,0.5);
-  border: 1px solid rgba(130, 110, 90, 0.3);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  color: #777;
-}
-.poetry-block h3 {
-  font-size: 22px;
-  margin-bottom: 12px;
-  color: #44382c;
-}
-.poetry-block p {
-  font-size: 16px;
-  line-height: 2;
-  color: #333;
-  white-space: pre-line;
-}
+            /* 优先级色 */
+            --high-prio: #6D94C0;
+            --mid-prio: #B8A050;
+            --low-prio: #7DA686;
+            --overdue: #CC8A8A;
 
-/* 顶部标题 */
-.title-mark {
-  position: fixed;
-  top: 32px;
-  left: 32px;
-  z-index: 10;
-  font-size: 28px;
-  color: #504234;
-  letter-spacing: 6px;
-  opacity: 0.85;
-}
-/* 加载遮罩 */
-.load-mask {
-  position: fixed;
-  inset: 0;
-  background: #f8f6f0;
-  z-index: 99;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: #665544;
-  transition: opacity 1s ease;
-}
-.load-mask.hide {
-  opacity: 0;
-  pointer-events: none;
-}
-/* 错误提示 */
-.error-tip {
-  position: fixed;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(180,40,40,0.9);
-  color: #fff;
-  padding: 12px 24px;
-  border-radius: 8px;
-  z-index: 100;
-  display: none;
-}
-</style>
+            /* 玻璃态 */
+            --glass-bg: rgba(255, 255, 255, 0.30);
+            --glass-bg-hover: rgba(255, 255, 255, 0.40);
+            --glass-bg-active: rgba(255, 255, 255, 0.48);
+            --glass-border: rgba(255, 255, 255, 0.45);
+            --glass-border-strong: rgba(255, 255, 255, 0.60);
+            --glass-blur: blur(14px) saturate(1.08);
+            --glass-inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.50);
+
+            /* 表面色 (别名保持兼容) */
+            --bg-card: rgba(255, 255, 255, 0.30);
+            --bg-card-hover: rgba(255, 255, 255, 0.40);
+            --bg-input: rgba(255, 255, 255, 0.14);
+            --bg-input-focus: rgba(255, 255, 255, 0.24);
+            --bg-modal: rgba(255, 255, 255, 0.74);
+            --bg-notify: rgba(255, 255, 255, 0.68);
+            --bg-overlay: rgba(250, 250, 250, 0.66);
+
+            /* 阴影 */
+            --shadow-xs: 0 1px 4px rgba(0, 0, 0, 0.03);
+            --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.09);
+            --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.13);
+            --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.04);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.09);
+            --shadow-modal: 0 18px 52px rgba(0, 0, 0, 0.15);
+
+            /* 发光系统 */
+            --glow: 0 0 12px rgba(109, 148, 192, 0.22);
+            --glow-strong: 0 0 22px rgba(109, 148, 192, 0.38);
+            --glow-accent: 0 0 10px rgba(109, 148, 192, 0.16);
+            --glow-overdue: 0 0 12px rgba(204, 138, 138, 0.30);
+
+            /* 文字 */
+            --text-primary: #2A2A2C;
+            --text-secondary: #7A7A80;
+            --text-muted: #A8A8AE;
+            --text-inverse: #FFFFFF;
+
+            /* 边框 */
+            --border-light: rgba(255, 255, 255, 0.40);
+            --border-card: rgba(255, 255, 255, 0.42);
+            --border-input: rgba(0, 0, 0, 0.07);
+            --border-input-focus: rgba(109, 148, 192, 0.45);
+
+            /* 圆角 */
+            --radius-xs: 6px;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --radius-2xl: 24px;
+
+            /* 动画缓动 */
+            --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+            --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --duration-fast: 0.18s;
+            --duration-normal: 0.32s;
+            --duration-slow: 0.50s;
+
+            /* 保持旧变量兼容 */
+            --transition-main: 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+
+            /* 字体 */
+            --font-sans: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+            --font-serif: "KaiTi", "STKaiti", "Noto Serif SC", "SimSun", serif;
+        }
+
+        /* ---------- DESIGN TOKENS [data-theme="dark"] (深色) ---------- */
+        [data-theme="dark"] {
+            --accent: #8BAFD6;
+            --accent-soft: #A0C4E8;
+            --accent-warm: #C8B890;
+            --accent-deep: #6A90B8;
+
+            --high-prio: #8BAFD6;
+            --mid-prio: #C8B060;
+            --low-prio: #80A888;
+            --overdue: #D49090;
+
+            --glass-bg: rgba(18, 24, 34, 0.40);
+            --glass-bg-hover: rgba(18, 24, 34, 0.52);
+            --glass-bg-active: rgba(18, 24, 34, 0.60);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-border-strong: rgba(255, 255, 255, 0.13);
+            --glass-inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+            --bg-card: rgba(18, 24, 34, 0.40);
+            --bg-card-hover: rgba(18, 24, 34, 0.52);
+            --bg-input: rgba(18, 24, 34, 0.28);
+            --bg-input-focus: rgba(18, 24, 34, 0.40);
+            --bg-modal: rgba(14, 18, 26, 0.84);
+            --bg-notify: rgba(18, 24, 34, 0.78);
+            --bg-overlay: rgba(8, 10, 16, 0.70);
+
+            --shadow-xs: 0 1px 4px rgba(0, 0, 0, 0.12);
+            --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.16);
+            --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.22);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.28);
+            --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.36);
+            --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.16);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.26);
+            --shadow-modal: 0 18px 52px rgba(0, 0, 0, 0.42);
+
+            --glow: 0 0 14px rgba(139, 175, 214, 0.22);
+            --glow-strong: 0 0 24px rgba(139, 175, 214, 0.36);
+            --glow-accent: 0 0 12px rgba(139, 175, 214, 0.18);
+            --glow-overdue: 0 0 14px rgba(212, 144, 144, 0.28);
+
+            --text-primary: #E6E6EC;
+            --text-secondary: #9494A0;
+            --text-muted: #666678;
+            --text-inverse: #1A1A20;
+
+            --border-light: rgba(255, 255, 255, 0.09);
+            --border-card: rgba(255, 255, 255, 0.09);
+            --border-input: rgba(255, 255, 255, 0.07);
+            --border-input-focus: rgba(139, 175, 214, 0.40);
+        }
+
+        /* ---------- BASE ---------- */
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background-image: url("https://sybel.oss-cn-hangzhou.aliyuncs.com/beijing%20%281%29.jpg");
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: cover;
+            background-attachment: fixed;
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 15px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: background-image var(--duration-slow) var(--ease-spring);
+        }
+
+        [data-theme="dark"] body {
+            background-image: url("https://sybel.oss-cn-hangzhou.aliyuncs.com/n4.webp");
+        }
+
+        /* 双层柔焦磨砂遮罩 */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: var(--bg-overlay);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            transition: background var(--duration-slow) var(--ease-spring),
+                backdrop-filter var(--duration-slow) var(--ease-spring);
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: radial-gradient(ellipse at 50% 40%, transparent 48%, rgba(0, 0, 0, 0.07) 100%);
+            pointer-events: none;
+            transition: background var(--duration-slow) var(--ease-spring);
+        }
+
+        [data-theme="dark"] body::after {
+            background: radial-gradient(ellipse at 50% 40%, transparent 48%, rgba(0, 0, 0, 0.20) 100%);
+        }
+
+        /* ---------- 3D BACKGROUND CANVAS ---------- */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ---------- LAYOUT: 三栏网格(自适应) ---------- */
+        .app-wrap {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(240px, 300px) 1fr minmax(220px, 280px);
+            padding: clamp(16px, 2vw, 26px);
+            gap: clamp(12px, 1.5vw, 22px);
+        }
+
+        .sidebar-left {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .sidebar-right {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        /* ---------- GLASS PANEL CARD ---------- */
+        .panel-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            padding: clamp(14px, 1.6vw, 20px);
+            box-shadow: var(--shadow-card), var(--glass-inner-highlight);
+            transition:
+                background var(--duration-normal) var(--ease-spring),
+                box-shadow var(--duration-normal) var(--ease-spring),
+                transform var(--duration-normal) var(--ease-spring),
+                border-color var(--duration-normal) var(--ease-spring);
+        }
+
+        .panel-card:hover {
+            background: var(--glass-bg-hover);
+            border-color: var(--glass-border-strong);
+            box-shadow: var(--shadow-hover), var(--glass-inner-highlight);
+            transform: translateY(-1px);
+        }
+
+        /* ---------- USER PANEL ---------- */
+        .panel-username .panel-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+            flex-wrap: nowrap;
+            width: 100%;
+        }
+
+        .panel-title-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .name-edit-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .name-edit-wrap h1 {
+            font-size: 22px;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 170px;
+        }
+
+        .edit-name-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--border-light);
+            background: transparent;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all var(--duration-fast) var(--ease-spring);
+        }
+
+        .edit-name-btn:hover {
+            background: var(--glow-accent);
+            color: var(--accent);
+            border-color: var(--accent);
+            transform: scale(1.10);
+        }
+
+        .panel-username .date-text {
+            color: var(--text-secondary);
+            font-size: 13px;
+            letter-spacing: 0.03em;
+            margin-top: 2px;
+        }
+
+        /* 寄语 */
+        .motto-wrap {
+            margin-top: 14px;
+        }
+
+        .motto-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-input);
+            border-radius: var(--radius-md);
+            padding: 13px 12px;
+            color: var(--text-primary);
+            font-family: var(--font-serif);
+            font-size: 14px;
+            letter-spacing: 0.02em;
+            line-height: 1.5;
+            font-weight: 300;
+            min-height: 50px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            caret-color: var(--accent);
+            transition: all var(--duration-normal) var(--ease-spring);
+        }
+
+        .motto-input:focus {
+            outline: none;
+            border-color: var(--border-input-focus);
+            background: var(--bg-input-focus);
+            box-shadow: var(--glow-accent);
+        }
+
+        .motto-input::placeholder {
+            font-family: var(--font-serif);
+            color: var(--text-muted);
+            font-style: italic;
+            letter-spacing: 0.02em;
+            font-size: 13px;
+        }
+
+        /* ---------- THEME TOGGLE ---------- */
+        .theme-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 10px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(109, 148, 192, 0.25);
+            background: rgba(109, 148, 192, 0.10);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            color: var(--accent);
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 0 6px rgba(109, 148, 192, 0.06);
+            flex-shrink: 0;
+            transition: all var(--duration-normal) var(--ease-spring);
+        }
+
+        .theme-toggle-btn:hover {
+            background: rgba(109, 148, 192, 0.20);
+            box-shadow: 0 0 16px rgba(109, 148, 192, 0.20);
+            transform: translateY(-2px);
+        }
+
+        .theme-toggle-btn:active {
+            transform: scale(0.94);
+        }
+
+        [data-theme="dark"] .theme-toggle-btn {
+            background: rgba(139, 175, 214, 0.16);
+            color: #A8C4E4;
+            box-shadow: 0 0 8px rgba(139, 175, 214, 0.10);
+        }
+
+        [data-theme="dark"] .theme-toggle-btn:hover {
+            background: rgba(139, 175, 214, 0.26);
+            box-shadow: 0 0 18px rgba(139, 175, 214, 0.24);
+        }
+
+        .theme-toggle-btn svg {
+            transition: transform 0.5s var(--ease-spring);
+        }
+
+        [data-theme="dark"] .theme-toggle-btn svg {
+            transform: rotate(180deg);
+        }
+
+        .theme-text {
+            font-size: 12px;
+            letter-spacing: 0.05em;
+            font-weight: 400;
+        }
+
+        /* ---------- NAV BUTTONS ---------- */
+        .func-btn {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: transparent;
+            text-align: left;
+            font-size: 15px;
+            font-family: var(--font-sans);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            position: relative;
+            transition: all var(--duration-fast) var(--ease-spring);
+        }
+
+        .func-btn:hover {
+            background: rgba(109, 148, 192, 0.08);
+            padding-left: 20px;
+        }
+
+        .func-btn.active {
+            background: rgba(109, 148, 192, 0.14);
+            box-shadow: inset 3px 0 0 var(--accent);
+            font-weight: 500;
+        }
+
+        .filter-section-label {
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 0 4px;
+        }
+
+        .create-task-btn {
+            margin-top: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+            color: var(--text-inverse);
+            font-weight: 500;
+            justify-content: center;
+            letter-spacing: 0.04em;
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 14px rgba(109, 148, 192, 0.28);
+            transition: all var(--duration-normal) var(--ease-bounce);
+        }
+
+        .create-task-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 22px rgba(109, 148, 192, 0.40);
+            padding-left: 16px;
+        }
+
+        .create-task-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* ---------- MAIN CONTENT ---------- */
+        .main-content {
+            overflow-y: auto;
+            padding-right: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2px;
+        }
+
+        .day-title {
+            font-size: clamp(20px, 2.2vw, 26px);
+            font-weight: 350;
+            letter-spacing: 0.03em;
+            color: var(--text-primary);
+        }
+
+        .control-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control-group button {
+            padding: 7px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-light);
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-family: var(--font-sans);
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            transition: all var(--duration-fast) var(--ease-spring);
+        }
+
+        .control-group button:hover {
+            background: var(--glass-bg-hover);
+            color: var(--text-primary);
+            border-color: var(--accent);
+            box-shadow: var(--glow-accent);
+            transform: translateY(-1px);
+        }
+
+        /* ---------- TASK CARD ---------- */
+        .task-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.22));
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--glass-border);
+            padding: 16px 16px 16px 18px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-xs);
+            cursor: grab;
+            position: relative;
+            overflow: hidden;
+            transition:
+                transform 0.28s var(--ease-bounce),
+                box-shadow 0.32s var(--ease-spring),
+                background 0.32s var(--ease-spring),
+                border-color 0.32s var(--ease-spring),
+                opacity 0.25s var(--ease-spring);
+            animation: cardEnter 0.45s var(--ease-out-expo) both;
+        }
+
+        @keyframes cardEnter {
+            from {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        [data-theme="dark"] .task-card {
+            background: linear-gradient(135deg, rgba(22, 28, 38, 0.38), rgba(16, 22, 32, 0.32));
+        }
+
+        .task-card:hover {
+            transform: translateY(-3px);
+            background: var(--bg-card-hover);
+            box-shadow: var(--shadow-md);
+            border-color: var(--glass-border-strong);
+        }
+
+        .task-card:active {
+            cursor: grabbing;
+            transform: scale(0.985);
+        }
+
+        /* 左侧优先级色条 */
+        .task-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 6px;
+            bottom: 6px;
+            width: 3px;
+            border-radius: 0 3px 3px 0;
+            transition: box-shadow var(--duration-normal) var(--ease-spring);
+        }
+
+        .task-prio-high::before {
+            background: var(--high-prio);
+            box-shadow: 0 0 8px rgba(109, 148, 192, 0.35);
+        }
+
+        .task-prio-mid::before {
+            background: var(--mid-prio);
+            box-shadow: 0 0 8px rgba(184, 160, 80, 0.30);
+        }
+
+        .task-prio-low::before {
+            background: var(--low-prio);
+            box-shadow: 0 0 8px rgba(125, 166, 134, 0.30);
+        }
+
+        .task-overdue::before {
+            background: var(--overdue);
+            box-shadow: var(--glow-overdue);
+            animation: overduePulse 2.0s infinite ease-in-out;
+        }
+
+        @keyframes overduePulse {
+            0%,
+            100% {
+                box-shadow: 0 0 6px rgba(204, 138, 138, 0.25);
+            }
+            50% {
+                box-shadow: 0 0 16px rgba(204, 138, 138, 0.50);
+            }
+        }
+
+        .task-running {
+            animation: taskBreathe 2.4s infinite ease-in-out;
+        }
+
+        @keyframes taskBreathe {
+            0%,
+            100% {
+                box-shadow: 0 0 10px rgba(109, 148, 192, 0.18), var(--shadow-xs);
+            }
+            50% {
+                box-shadow: 0 0 26px rgba(109, 148, 192, 0.36), var(--shadow-sm);
+            }
+        }
+
+        .task-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 5px;
+            letter-spacing: 0.02em;
+            color: var(--text-primary);
+        }
+
+        .task-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+        }
+
+        .task-desc-inline {
+            margin-top: 6px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+        }
+
+        .task-done {
+            opacity: 0.50;
+        }
+
+        .task-done .task-title {
+            text-decoration: line-through;
+            text-decoration-color: var(--text-muted);
+            text-decoration-thickness: 1px;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .task-actions button {
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--border-light);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: all var(--duration-fast) var(--ease-spring);
+        }
+
+        .task-actions button:hover {
+            background: rgba(109, 148, 192, 0.10);
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .task-actions .btn-del:hover {
+            background: rgba(204, 138, 138, 0.12);
+            border-color: var(--overdue);
+            color: var(--overdue);
+        }
+
+        /* 任务完成脉冲 */
+        .task-complete-flash {
+            animation: completeFlash 0.6s var(--ease-out-expo);
+        }
+
+        @keyframes completeFlash {
+            0% {
+                box-shadow: 0 0 0 rgba(125, 166, 134, 0.55), var(--shadow-xs);
+            }
+            100% {
+                box-shadow: 0 0 0 rgba(125, 166, 134, 0), var(--shadow-xs);
+            }
+        }
+
+        /* ---------- STAT ITEMS ---------- */
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            transition: background var(--duration-fast) var(--ease-spring);
+        }
+
+        .stat-item:hover {
+            background: rgba(109, 148, 192, 0.06);
+        }
+
+        .stat-item span:first-child {
+            font-size: 13px;
+            color: var(--text-secondary);
+            letter-spacing: 0.03em;
+        }
+
+        .stat-item span:last-child {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ---------- ORBIT PANEL ---------- */
+        #orbit-canvas-wrap {
+            width: 100%;
+            height: clamp(200px, 20vw, 270px);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.03);
+        }
+
+        [data-theme="dark"] #orbit-canvas-wrap {
+            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.15);
+        }
+
+        #orbit-canvas {
+            width: 90%;
+            height: 90%;
+        }
+
+        .orbit-label {
+            position: absolute;
+            top: 14px;
+            left: 16px;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            pointer-events: none;
+        }
+
+        /* ---------- MODAL ---------- */
+        .modal-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.30);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 99;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-box {
+            width: clamp(340px, 38vw, 460px);
+            max-width: 92vw;
+            background: var(--bg-modal);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--glass-border-strong);
+            padding: 28px;
+            box-shadow: var(--shadow-modal), var(--glass-inner-highlight);
+            animation: modalEnter 0.38s var(--ease-out-expo) both;
+        }
+
+        @keyframes modalEnter {
+            from {
+                opacity: 0;
+                transform: translateY(22px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 400;
+            margin-bottom: 22px;
+            letter-spacing: 0.03em;
+            color: var(--text-primary);
+        }
+
+        .form-row {
+            margin-bottom: 16px;
+        }
+
+        .form-row label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+            letter-spacing: 0.03em;
+        }
+
+        .form-row input,
+        .form-row select,
+        .form-row textarea {
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-input);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: var(--font-sans);
+            transition: all var(--duration-normal) var(--ease-spring);
+            outline: none;
+        }
+
+        .form-row input:focus,
+        .form-row select:focus,
+        .form-row textarea:focus {
+            border-color: var(--border-input-focus);
+            background: var(--bg-input-focus);
+            box-shadow: 0 0 0 3px rgba(109, 148, 192, 0.10);
+        }
+
+        .form-row textarea {
+            resize: vertical;
+            min-height: 72px;
+        }
+
+        /* datetime-local 精致样式 */
+        input[type="datetime-local"] {
+            -webkit-appearance: none;
+            appearance: none;
+            position: relative;
+        }
+
+        input[type="datetime-local"]:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 6px rgba(109, 148, 192, 0.16);
+        }
+
+        input[type="datetime-local"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(109, 148, 192, 0.10);
+            animation: dtBreathe 2.8s infinite ease-in-out;
+        }
+
+        @keyframes dtBreathe {
+            0%,
+            100% {
+                box-shadow: 0 0 8px var(--glow-accent);
+            }
+            50% {
+                box-shadow: 0 0 18px var(--glow);
+            }
+        }
+
+        ::-webkit-datetime-edit {
+            padding: 4px 6px;
+        }
+
+        ::-webkit-datetime-edit-text {
+            color: var(--accent);
+            padding: 0 4px;
+            opacity: 0.75;
+        }
+
+        ::-webkit-datetime-edit-year-field:hover,
+        ::-webkit-datetime-edit-month-field:hover,
+        ::-webkit-datetime-edit-day-field:hover,
+        ::-webkit-datetime-edit-hour-field:hover,
+        ::-webkit-datetime-edit-minute-field:hover {
+            background: rgba(109, 148, 192, 0.12);
+            border-radius: 6px;
+        }
+
+        ::-webkit-calendar-picker-indicator {
+            width: 26px;
+            height: 26px;
+            margin-left: 6px;
+            cursor: pointer;
+            border-radius: var(--radius-xs);
+            transition: all var(--duration-fast) var(--ease-spring);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236D94C0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M8 2v3m8-3v3M3 10h18M5 6h14a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z'%3E%3C/path%3E%3C/svg%3E");
+            background-size: 18px;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        ::-webkit-calendar-picker-indicator:hover {
+            background-color: rgba(109, 148, 192, 0.14);
+            box-shadow: 0 0 8px rgba(109, 148, 192, 0.25);
+        }
+
+        [data-theme="dark"] ::-webkit-calendar-picker-indicator {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238BAFD6'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M8 2v3m8-3v3M3 10h18M5 6h14a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z'%3E%3C/path%3E%3C/svg%3E");
+        }
+
+        ::-webkit-calendar-day-selected {
+            background: linear-gradient(135deg, #6D94C0, #8BAFD6) !important;
+            color: #fff !important;
+            border-radius: 10px !important;
+            box-shadow: 0 0 8px rgba(109, 148, 192, 0.4) !important;
+            border: none !important;
+        }
+
+        /* ---------- MODAL BUTTONS ---------- */
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .modal-buttons button {
+            padding: 10px 22px;
+            border-radius: var(--radius-md);
+            border: none;
+            font-family: var(--font-sans);
+            font-size: 15px;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: all var(--duration-normal) var(--ease-spring);
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--border-light) !important;
+            color: var(--text-primary);
+        }
+
+        .btn-cancel:hover {
+            background: rgba(109, 148, 192, 0.06);
+            border-color: var(--accent) !important;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+            color: #FFFFFF;
+            box-shadow: 0 4px 14px rgba(109, 148, 192, 0.28);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 22px rgba(109, 148, 192, 0.42);
+        }
+
+        .btn-save:active {
+            transform: scale(0.97);
+        }
+
+        /* ---------- FOCUS MODE ---------- */
+        body.focus-mode .sidebar-left,
+        body.focus-mode .sidebar-right,
+        body.focus-mode #bg-canvas {
+            opacity: 0.10;
+            filter: blur(3px);
+            pointer-events: none;
+            transition:
+                opacity 0.55s var(--ease-spring),
+                filter 0.55s var(--ease-spring);
+        }
+
+        body.focus-mode .main-content {
+            max-width: clamp(400px, 52vw, 620px);
+            margin: 0 auto;
+            transition: max-width 0.55s var(--ease-spring);
+        }
+
+        .focus-exit-btn {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 22px;
+            border-radius: var(--radius-lg);
+            border: none;
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+            color: #FFFFFF;
+            font-size: 14px;
+            font-family: var(--font-sans);
+            font-weight: 500;
+            box-shadow: 0 6px 24px rgba(109, 148, 192, 0.35);
+            cursor: pointer;
+            letter-spacing: 0.04em;
+            transition: all var(--duration-normal) var(--ease-spring);
+        }
+
+        .focus-exit-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 32px rgba(109, 148, 192, 0.48);
+        }
+
+        body.focus-mode .focus-exit-btn {
+            display: flex;
+        }
+
+        /* ---------- NOTIFICATION BAR ---------- */
+        .notify-bar {
+            position: fixed;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-notify);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 13px 28px;
+            border-radius: var(--radius-2xl);
+            border: 1px solid var(--glass-border-strong);
+            box-shadow: var(--shadow-lg), 0 0 18px var(--glow);
+            z-index: 9999;
+            transition: top 0.42s var(--ease-spring);
+            font-size: 14px;
+            letter-spacing: 0.04em;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .notify-bar.show {
+            top: 26px;
+        }
+
+        /* ---------- WISH TREE ---------- */
+        .wish-tree-wrap {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: clamp(220px, 28vw, 340px);
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .wish-tree-wrap::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: clamp(28px, 4vw, 40px);
+            background: linear-gradient(to bottom, var(--bg-overlay), transparent);
+            z-index: 2;
+            pointer-events: none;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            transition: background var(--duration-slow) var(--ease-spring);
+        }
+
+        #tree-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .tree-tip {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            background: var(--glass-bg);
+            padding: 6px 18px;
+            border-radius: var(--radius-2xl);
+            border: 1px solid var(--glass-border);
+            animation: tipFloat 3.5s infinite ease-in-out;
+        }
+
+        @keyframes tipFloat {
+            0%,
+            100% {
+                transform: translateX(-50%) translateY(0);
+            }
+            50% {
+                transform: translateX(-50%) translateY(-4px);
+            }
+        }
+
+        body.focus-mode .wish-tree-wrap {
+            opacity: 0.06;
+            transition: opacity 0.55s var(--ease-spring);
+        }
+
+        /* ---------- SCROLLBAR ---------- */
+        .main-content::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .main-content::-webkit-scrollbar-track {
+            background: transparent;
+            margin: 8px 0;
+        }
+
+        .main-content::-webkit-scrollbar-thumb {
+            background: rgba(109, 148, 192, 0.20);
+            border-radius: 10px;
+            transition: background var(--duration-fast);
+        }
+
+        .main-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(109, 148, 192, 0.40);
+        }
+
+        [data-theme="dark"] .main-content::-webkit-scrollbar-thumb {
+            background: rgba(139, 175, 214, 0.15);
+        }
+
+        [data-theme="dark"] .main-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 175, 214, 0.32);
+        }
+
+        /* ---------- ENTRANCE ANIMATIONS ---------- */
+        @keyframes fadeSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .sidebar-left {
+            animation: fadeSlideUp 0.55s 0.06s var(--ease-out-expo) both;
+        }
+
+        .main-content {
+            animation: fadeSlideUp 0.55s 0.16s var(--ease-out-expo) both;
+        }
+
+        .sidebar-right {
+            animation: fadeSlideUp 0.55s 0.26s var(--ease-out-expo) both;
+        }
+
+        .wish-tree-wrap {
+            animation: fadeSlideUp 0.65s 0.36s var(--ease-out-expo) both;
+        }
+
+        /* ---------- EMPTY STATE ---------- */
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-muted);
+            font-size: 15px;
+            letter-spacing: 0.04em;
+        }
+
+        .empty-state svg {
+            display: block;
+            margin: 0 auto 16px;
+            opacity: 0.30;
+        }
+
+        /* ---------- STAT VIEW CARDS ---------- */
+        .stat-view-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            margin-bottom: 14px;
+            box-shadow: var(--shadow-xs), var(--glass-inner-highlight);
+        }
+
+        .stat-view-card h4 {
+            font-size: 17px;
+            font-weight: 400;
+            margin-bottom: 12px;
+            letter-spacing: 0.03em;
+            color: var(--text-primary);
+        }
+
+        .stat-view-card p {
+            font-size: 15px;
+            line-height: 2.0;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+        }
+
+        /* ---------- SELECTION ---------- */
+        ::selection {
+            background: rgba(109, 148, 192, 0.22);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] ::selection {
+            background: rgba(139, 175, 214, 0.28);
+        }
+
+        /* ---------- BRAND LOGO ---------- */
+        .brand-logo {
+            position: fixed;
+            bottom: 16px;
+            right: 24px;
+            z-index: 10;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .brand-logo img {
+            display: block;
+            height: clamp(52px, 9vw, 112px);
+            width: auto;
+            opacity: 0.55;
+            /* 白天明媚：自然通透 */
+            filter: brightness(1.05) saturate(1.1);
+            transition:
+                opacity var(--duration-normal) var(--ease-spring),
+                filter var(--duration-slow) var(--ease-spring);
+        }
+
+        [data-theme="dark"] .brand-logo img {
+            /* 夜晚神秘深奥：降亮度 + 蓝紫冷调 + 微辉光 */
+            filter: brightness(0.72) saturate(0.7) hue-rotate(25deg) drop-shadow(0 0 6px rgba(139, 175, 214, 0.30));
+            opacity: 0.62;
+        }
+
+        .brand-logo img:hover {
+            opacity: 0.90;
+        }
+
+        /* ---------- RESPONSIVE BREAKPOINTS ---------- */
+
+        /* ≤1280px: 收窄侧栏，缩减间距 */
+        @media (max-width: 1280px) {
+            .app-wrap {
+                grid-template-columns: minmax(200px, 240px) 1fr minmax(180px, 220px);
+                padding: clamp(12px, 1.8vw, 20px);
+                gap: clamp(10px, 1.2vw, 16px);
+            }
+            .panel-card {
+                padding: clamp(12px, 1.5vw, 18px);
+            }
+            .func-btn {
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+            .name-edit-wrap h1 {
+                font-size: clamp(17px, 1.8vw, 20px);
+                max-width: 130px;
+            }
+            .day-title {
+                font-size: clamp(18px, 2.2vw, 22px);
+            }
+            .theme-text {
+                display: none;
+            }
+            .theme-toggle-btn {
+                padding: 6px 8px;
+            }
+            .task-title {
+                font-size: 14px;
+            }
+            .task-meta {
+                font-size: 12px;
+            }
+            .focus-exit-btn {
+                top: 20px;
+                right: 20px;
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+        }
+
+        /* ≤960px: 三栏堆叠为单栏 + 底部保留灵树 */
+        @media (max-width: 960px) {
+            .app-wrap {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+                padding: 12px;
+                gap: 10px;
+                height: 100vh;
+                overflow-y: auto;
+            }
+            .sidebar-left {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .sidebar-left .panel-card:first-child {
+                grid-column: 1 / -1;
+            }
+            .sidebar-left .panel-card {
+                padding: 14px;
+            }
+            .sidebar-right {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .main-content {
+                order: 0;
+            }
+            .sidebar-left {
+                order: -1;
+            }
+            .sidebar-right {
+                order: 1;
+            }
+            #orbit-canvas-wrap {
+                height: 180px;
+            }
+            .wish-tree-wrap {
+                height: 200px;
+            }
+            .modal-box {
+                width: 92vw;
+                padding: 20px;
+            }
+            .brand-logo img {
+                height: clamp(32px, 7vw, 56px);
+            }
+            .brand-logo {
+                bottom: 12px;
+                right: 12px;
+            }
+            .control-group button {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            .name-edit-wrap h1 {
+                font-size: 18px;
+                max-width: 160px;
+            }
+            .focus-exit-btn {
+                top: 12px;
+                right: 12px;
+                padding: 8px 14px;
+            }
+            .day-title {
+                font-size: 20px;
+            }
+            .notify-bar {
+                padding: 10px 18px;
+                font-size: 13px;
+            }
+        }
+
+        /* ≤600px: 侧栏内部也堆叠 */
+        @media (max-width: 600px) {
+            .sidebar-left {
+                grid-template-columns: 1fr;
+            }
+            .sidebar-right {
+                grid-template-columns: 1fr;
+            }
+            .app-wrap {
+                padding: 8px;
+                gap: 8px;
+            }
+            .main-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .modal-box {
+                padding: 16px;
+                border-radius: var(--radius-lg);
+            }
+            .tree-tip {
+                font-size: 11px;
+                padding: 4px 12px;
+                bottom: 10px;
+            }
+        }
+
+        /* ---------- REDUCED MOTION ---------- */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
 </head>
+
 <body>
-<div class="load-mask" id="loadMask">四时花韵 · 加载中</div>
-<div class="error-tip" id="errorTip"></div>
-<div class="title-mark">四 時 花 韻</div>
+    <canvas id="bg-canvas"></canvas>
+    <div class="notify-bar" id="notify">日程提醒</div>
 
-<!-- 3D画布容器 -->
-<div id="canvas-wrap"></div>
-
-<!-- 右侧季节导航 -->
-<div class="season-nav">
-  <button class="season-btn" data-season="spring">春</button>
-  <button class="season-btn" data-season="summer">夏</button>
-  <button class="season-btn" data-season="autumn">秋</button>
-  <button class="season-btn" data-season="winter">冬</button>
-</div>
-
-<!-- 古风卷轴弹窗 -->
-<div class="scroll-container" id="scrollBox">
-  <span class="scroll-close" id="scrollClose">×</span>
-  <div class="scroll-inner" id="scrollContent"></div>
-</div>
-
-<script type="module" crossorigin="anonymous">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-// DOM元素
-const loadMask = document.getElementById("loadMask");
-const errorTip = document.getElementById("errorTip");
-const canvasWrap = document.getElementById("canvas-wrap");
-const scrollBox = document.getElementById("scrollBox");
-const scrollContent = document.getElementById("scrollContent");
-const scrollClose = document.getElementById("scrollClose");
-const seasonBtns = document.querySelectorAll(".season-btn");
-
-// 四季花卉诗文素材库
-const seasonData = {
-  spring: {
-    tint: new THREE.Color("#fce4e8"),
-    flowers: [
-      { name: "牡丹", img: "牡丹水墨图", poem: "《牡丹》\n唐·皮日休\n落尽残红始吐芳，佳名唤作百花王。\n竞夸天下无双艳，独立人间第一香。" },
-      { name: "海棠", img: "垂丝海棠", poem: "《海棠》\n宋·苏轼\n东风袅袅泛崇光，香雾空蒙月转廊。\n只恐夜深花睡去，故烧高烛照红妆。" },
-      { name: "迎春", img: "迎春花", poem: "《迎春花》\n宋·刘敞\n秾李繁桃刮眼明，东风先入九重城。\n黄花翠蔓无人愿，浪得迎春世上名。" },
-      { name: "玉兰", img: "白玉兰", poem: "《玉兰》\n明·文徵明\n绰约新妆玉有辉，素娥千队雪成围。\n我知姑射真仙子，天遣霓裳试羽衣。" }
-    ]
-  },
-  summer: {
-    tint: new THREE.Color("#e4f3f0"),
-    flowers: [
-      { name: "荷花", img: "水墨荷花", poem: "《爱莲说》节选\n宋·周敦颐\n出淤泥而不染，濯清涟而不妖，\n中通外直，不蔓不枝，香远益清。" },
-      { name: "茉莉", img: "茉莉盆栽", poem: "《茉莉花》\n清·王士禄\n冰雪为容玉作胎，柔情合傍琐窗隈。\n香从清梦回时觉，花向美人头上开。" },
-      { name: "月季", img: "粉月季", poem: "《月季》\n宋·苏轼\n花落花开无间断，春来春去不相关。\n牡丹最贵惟春晚，芍药虽繁只夏初。\n唯有此花开不厌，一年长占四时春。" },
-      { name: "紫薇", img: "紫薇花", poem: "《紫薇花》\n唐·杜牧\n晓迎秋露一枝新，不占园中最上春。\n桃李无言又何在，向风偏笑艳阳人。" }
-    ]
-  },
-  autumn: {
-    tint: new THREE.Color("#f9ede0"),
-    flowers: [
-      { name: "桂花", img: "金桂满枝", poem: "《桂花》\n宋·杨万里\n不是人间种，移从月中来。\n广寒香一点，吹得满山开。" },
-      { name: "木槿", img: "木槿花", poem: "《木槿花》\n金·王寂\n梦魂不到武陵源，且向篱边看木槿。\n晓开暮落寻常事，不与春花竞浅深。" },
-      { name: "菊花", img: "秋菊", poem: "《饮酒·其五》\n晋·陶渊明\n采菊东篱下，悠然见南山。\n山气日夕佳，飞鸟相与还。" }
-    ]
-  },
-  winter: {
-    tint: new THREE.Color("#eef2f8"),
-    flowers: [
-      { name: "梅花", img: "寒梅傲雪", poem: "《梅花》\n宋·王安石\n墙角数枝梅，凌寒独自开。\n遥知不是雪，为有暗香来。" },
-      { name: "山茶", img: "红山茶花", poem: "《山茶》\n明·沈周\n老叶经寒厚，繁花傲雪妍。\n独存岁寒色，不借早春妍。" },
-      { name: "水仙", img: "凌波水仙", poem: "《水仙花》\n宋·黄庭坚\n凌波仙子生尘袜，水上轻盈步微月。\n是谁招此断肠魂，种作寒花寄愁绝。" }
-    ]
-  }
-};
-
-// 全局变量
-let scene, camera, renderer, controls;
-let flowerGroup;
-let clock = new THREE.Clock();
-let currentSeason = null;
-let scrollOpen = false;
-
-// 捕获JS全局错误
-window.addEventListener('error', (e) => {
-  console.error(e);
-  errorTip.innerText = `加载失败：${e.message}，请使用Live Server打开页面`;
-  errorTip.style.display = 'block';
-});
-
-// 初始化3D场景
-function initThree() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color("#f8f6f0");
-  scene.fog = new THREE.FogExp2("#f8f6f0", 0.0008);
-
-  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-  camera.position.set(0, 14, 40);
-
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  canvasWrap.appendChild(renderer.domElement);
-
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.minDistance = 22;
-  controls.maxDistance = 90;
-  controls.maxPolarAngle = Math.PI / 2.1;
-
-  const ambientLight = new THREE.AmbientLight(0xfff9ef, 0.75);
-  scene.add(ambientLight);
-  const dirLight = new THREE.DirectionalLight(0xfff7e8, 0.4);
-  dirLight.position.set(20, 30, 20);
-  scene.add(dirLight);
-
-  createFlowerRing();
-  window.addEventListener("resize", onWindowResize);
-}
-
-// 生成单朵花卉
-function createFlowerMesh(baseSize, offsetHue) {
-  const group = new THREE.Group();
-  for (let i = 0; i < 6; i++) {
-    const angle = (i / 6) * Math.PI * 2;
-    const petalGeo = new THREE.CircleGeometry(baseSize, 12);
-    const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(0.08 + offsetHue, 0.45, 0.92),
-      roughness: 0.72,
-      metalness: 0
-    });
-    const petal = new THREE.Mesh(petalGeo, mat);
-    petal.rotation.z = angle;
-    petal.position.set(Math.cos(angle) * baseSize * 0.35, Math.sin(angle) * baseSize * 0.35, 0);
-    group.add(petal);
-  }
-  const coreGeo = new THREE.SphereGeometry(baseSize * 0.22, 8, 8);
-  const coreMat = new THREE.MeshStandardMaterial({ color: 0xe6c870 });
-  const core = new THREE.Mesh(coreGeo, coreMat);
-  group.add(core);
-  return group;
-}
-
-// 分层环形花卉
-function createFlowerRing() {
-  flowerGroup = new THREE.Group();
-  const layers = [
-    { radius: 6, count: 12, size: 0.32, hue: 0.02 },
-    { radius: 12, count: 18, size: 0.55, hue: 0.06 },
-    { radius: 19, count: 24, size: 0.8, hue: 0.11 },
-  ];
-  layers.forEach(layer => {
-    for (let i = 0; i < layer.count; i++) {
-      const angle = (i / layer.count) * Math.PI * 2;
-      const flower = createFlowerMesh(layer.size, layer.hue);
-      const r = layer.radius;
-      flower.position.set(
-        Math.cos(angle) * r,
-        (Math.sin(i * 0.4) * 0.6),
-        Math.sin(angle) * r
-      );
-      flower.userData.baseY = flower.position.y;
-      flowerGroup.add(flower);
-    }
-  });
-  scene.add(flowerGroup);
-}
-
-// 窗口缩放
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-// 切换季节色调
-function setSeasonTint(seasonKey, clickBtn) {
-  const data = seasonData[seasonKey];
-  scene.background = data.tint.clone();
-  scene.fog.color = data.tint.clone();
-  currentSeason = seasonKey;
-  seasonBtns.forEach(btn => btn.classList.remove("active"));
-  clickBtn.classList.add("active");
-}
-
-// 打开/切换卷轴【核心修复函数】
-function openScroll(seasonKey, clickBtn) {
-  // 无论卷轴是否打开，都先重置，允许跨季节切换
-  scrollOpen = false;
-  scrollBox.classList.remove("open");
-
-  // 短暂延时，等卷轴收起动画完成再展开新季节
-  setTimeout(() => {
-    scrollOpen = true;
-    setSeasonTint(seasonKey, clickBtn);
-    scrollBox.classList.add("open");
-    const data = seasonData[seasonKey];
-    scrollContent.innerHTML = "";
-    data.flowers.forEach(item => {
-      const card = document.createElement("div");
-      card.className = "flower-card";
-      card.innerHTML = `
-        <div class="flower-img-box">${item.img}</div>
-        <div class="poetry-block">
-          <h3>${item.name}</h3>
-          <p>${item.poem}</p>
+    <div class="app-wrap">
+        <!-- ====== 左栏 ====== -->
+        <div class="sidebar-left">
+            <div class="panel-card panel-username">
+                <div class="panel-header-row">
+                    <div class="panel-title-wrap">
+                        <div class="name-edit-wrap">
+                            <h1 id="user-name-display">Chrono 日程</h1>
+                            <button class="edit-name-btn" id="open-name-modal" aria-label="修改昵称">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"
+                                viewBox="0 0 24 24">
+                                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="date-text" id="today-date"></p>
+                </div>
+                <button class="theme-toggle-btn" id="theme-switch" aria-label="切换昼夜主题">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <span class="theme-text">昼夜</span>
+            </button>
         </div>
-      `;
-      scrollContent.appendChild(card);
-    });
-  }, 600);
-}
+        <div class="motto-wrap">
+            <input class="motto-input" id="user-motto" placeholder="写下今日寄语，为自己打气～">
+            <p id="motto-warn-text" style="color:#CC8A8A; font-size:12px; margin-top:5px; display:none;">寄语不能超过15个字！</p>
+        </div>
+    </div>
 
-// 关闭卷轴
-function closeScroll() {
-  scrollOpen = false;
-  scrollBox.classList.remove("open");
-}
+    <div class="panel-card" role="navigation" aria-label="视图切换">
+        <button class="func-btn active" data-view="day">今日日程</button>
+        <button class="func-btn" data-view="week">本周总览</button>
+        <button class="func-btn" data-view="stat">数据统计</button>
+        <button class="func-btn" id="focus-btn">专注模式</button>
+        <button class="func-btn create-task-btn" id="open-modal">+ 新建日程</button>
+    </div>
 
-// 绑定UI交互
-function bindUI() {
-  seasonBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const s = btn.dataset.season;
-      console.log("点击季节：", s);
-      openScroll(s, btn);
-    });
-  });
-  scrollClose.addEventListener("click", closeScroll);
-}
+    <div class="panel-card" role="navigation" aria-label="快捷分类">
+        <div class="filter-section-label">快捷分类</div>
+        <button class="func-btn active" data-filter="all">全部任务</button>
+        <button class="func-btn" data-filter="work">工作</button>
+        <button class="func-btn" data-filter="study">学习</button>
+        <button class="func-btn" data-filter="life">生活</button>
+    </div>
+</div>
 
-// 动画循环
-function animate() {
-  requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
-  flowerGroup.children.forEach((flower, idx) => {
-    const baseY = flower.userData.baseY;
-    flower.position.y = baseY + Math.sin(t * 0.7 + idx * 0.3) * 0.45;
-    flower.rotation.y += 0.0025;
-  });
-  flowerGroup.rotation.y += 0.0008;
-  controls.update();
-  renderer.render(scene, camera);
-}
+<!-- ====== 中栏 ====== -->
+<div class="main-content" id="task-container">
+    <div class="main-header">
+        <h2 class="day-title">今日安排</h2>
+        <div class="control-group">
+            <button id="export-data">导出数据</button>
+            <button id="clear-done">清空已完成</button>
+        </div>
+    </div>
+    <div id="task-list"></div>
+</div>
 
-// 启动项目
-async function start() {
-  try {
-    initThree();
-    bindUI();
-    animate();
-    setTimeout(() => loadMask.classList.add("hide"), 600);
-  } catch (err) {
-    console.error("初始化失败：", err);
-    errorTip.innerText = `3D场景初始化失败：${err.message}`;
-    errorTip.style.display = 'block';
-  }
-}
-start();
+<!-- ====== 右栏 ====== -->
+<div class="sidebar-right">
+    <div class="panel-card" id="orbit-canvas-wrap">
+        <span class="orbit-label">时间轨道</span>
+        <canvas id="orbit-canvas"></canvas>
+    </div>
+    <div class="panel-card">
+        <h3 style="margin-bottom:14px;font-size:16px;font-weight:400;letter-spacing:0.03em;">今日统计</h3>
+        <div class="stat-item"><span>总任务</span><span id="stat-total">0</span></div>
+        <div class="stat-item"><span>已完成</span><span id="stat-done">0</span></div>
+        <div class="stat-item"><span>进行中</span><span id="stat-running">0</span></div>
+        <div class="stat-item"><span>完成率</span><span id="stat-rate">0%</span></div>
+    </div>
+</div>
+</div>
+
+<!-- ====== 底部许愿灵树 ====== -->
+<div class="wish-tree-wrap">
+    <canvas id="tree-canvas"></canvas>
+    <div class="tree-tip">每完成一项任务，灵树便会结出发光果实</div>
+</div>
+
+<!-- ====== 品牌标识 (右下角) ====== -->
+<div class="brand-logo">
+    <img src="https://sybel.oss-cn-hangzhou.aliyuncs.com/logo.png" alt="Chrono">
+</div>
+
+<!-- ====== 修改用户名弹窗 ====== -->
+<div class="modal-mask" id="name-modal">
+    <div class="modal-box" style="width:380px;">
+        <h3 class="modal-title">修改你的专属昵称</h3>
+        <div class="form-row">
+            <label>主人翁昵称</label>
+            <input type="text" id="new-user-name" placeholder="输入你的名字">
+        </div>
+        <div class="modal-buttons">
+            <button class="btn-cancel" id="close-name-modal">取消</button>
+            <button class="btn-save" id="save-name">确认修改</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====== 专注模式退出按钮 ====== -->
+<button class="focus-exit-btn" id="focus-exit" aria-label="退出专注模式">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M19 12H5M12 19l-7-7 7-7" />
+    </svg>
+    <span>退出专注</span>
+</button>
+
+<!-- ====== 新建/编辑任务弹窗 ====== -->
+<div class="modal-mask" id="task-modal">
+    <div class="modal-box">
+        <h3 class="modal-title">新建日程任务</h3>
+        <div class="form-row">
+            <label>任务标题</label>
+            <input type="text" id="task-title" placeholder="输入任务名称">
+        </div>
+        <div class="form-row">
+            <label>分类</label>
+            <select id="task-type">
+                <option value="work">工作</option>
+                <option value="study">学习</option>
+                <option value="life">生活</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label>优先级</label>
+            <select id="task-prio">
+                <option value="high">高优先级</option>
+                <option value="mid">中优先级</option>
+                <option value="low">低优先级</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label>开始时间</label>
+            <input type="datetime-local" id="task-start">
+        </div>
+        <div class="form-row">
+            <label>结束时间</label>
+            <input type="datetime-local" id="task-end">
+        </div>
+        <div class="form-row">
+            <label>备注信息</label>
+            <textarea id="task-desc" rows="3" placeholder="补充说明、地点等"></textarea>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn-cancel" id="close-modal">取消</button>
+            <button class="btn-save" id="save-task">保存任务</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====== THREE.JS ====== -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js">
 </script>
+
+<script>
+    /* ================================================================
+       CHRONO · APPLICATION LOGIC
+       所有核心功能保持不变，修复已知Bug
+       ================================================================ */
+
+    const STORAGE_KEY = "chrono-task-data";
+    const USER_STORAGE = "chrono-user-info";
+    const THEME_KEY = "chrono-theme";
+
+    // ---- 用户信息 ----
+    let userInfo = JSON.parse(localStorage.getItem(USER_STORAGE)) || {
+        name: "Chrono 日程",
+        motto: "",
+        lastTaskDate: Date.now(),
+        completeCount: 0
+    };
+
+    document.getElementById("user-name-display").innerText = userInfo.name;
+    document.getElementById("user-motto").value = userInfo.motto;
+
+    function saveUserInfo() {
+        localStorage.setItem(USER_STORAGE, JSON.stringify(userInfo));
+    }
+
+    // ---- 昵称弹窗 ----
+    const nameModal = document.getElementById("name-modal");
+    document.getElementById("open-name-modal").onclick = () => {
+        document.getElementById("new-user-name").value = userInfo.name;
+        nameModal.style.display = "flex";
+    };
+    document.getElementById("close-name-modal").onclick = () => nameModal.style.display = "none";
+    document.getElementById("save-name").onclick = () => {
+        const newName = document.getElementById("new-user-name").value.trim();
+        if (!newName) return showNotify("昵称不能为空");
+        userInfo.name = newName;
+        document.getElementById("user-name-display").innerText = newName;
+        saveUserInfo();
+        nameModal.style.display = "none";
+        showNotify("昵称修改成功");
+    };
+
+    // ---- 寄语实时保存 + 15字限制 ----
+    document.getElementById("user-motto").oninput = (e) => {
+        const input = e.target;
+        const warnDom = document.getElementById("motto-warn-text");
+        if (input.value.length > 15) {
+            warnDom.style.display = "block";
+            input.value = input.value.slice(0, 15);
+        } else {
+            warnDom.style.display = "none";
+            userInfo.motto = input.value;
+            saveUserInfo();
+        }
+    };
+
+    // ---- 任务数据 ----
+    let taskList = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    let currentView = "day";
+    let currentFilter = "all";
+    let editTaskId = null;
+
+    const today = new Date();
+    document.getElementById("today-date").innerText =
+        today.toLocaleDateString("zh-CN", { weekday: "long", month: "long", day: "numeric" });
+
+    function saveStorage() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(taskList));
+        renderAll();
+    }
+
+    function getNowTime() { return new Date().getTime(); }
+
+    function isTaskRunning(start, end) {
+        const now = getNowTime();
+        return now >= new Date(start).getTime() && now < new Date(end).getTime();
+    }
+
+    function isTaskOverdue(end) {
+        return getNowTime() > new Date(end).getTime();
+    }
+
+    function showNotify(text) {
+        const bar = document.getElementById("notify");
+        bar.innerText = text;
+        bar.classList.add("show");
+        setTimeout(() => bar.classList.remove("show"), 3000);
+    }
+
+    function isValidDate(d) {
+        return d instanceof Date && !isNaN(d.getTime());
+    }
+
+    function renderAll() {
+        renderTaskList();
+        renderStat();
+        if (typeof renderOrbitPoints === "function") renderOrbitPoints();
+    }
+
+    // ---- 任务列表渲染 ----
+    function renderTaskList() {
+        const wrap = document.getElementById("task-list");
+        wrap.innerHTML = "";
+        let filterTasks = taskList;
+
+        if (currentFilter !== "all") filterTasks = taskList.filter(t => t.type === currentFilter);
+
+        if (currentView === "day") {
+            document.querySelector(".day-title").innerText = "今日安排";
+            const todayStr = new Date().toISOString().slice(0, 10);
+            filterTasks = filterTasks.filter(item => item.start.slice(0, 10) === todayStr);
+        } else if (currentView === "week") {
+            document.querySelector(".day-title").innerText = "本周全部日程";
+            const now = new Date();
+            const day = now.getDay();
+            const weekStart = new Date(now.getTime() - day * 24 * 3600 * 1000);
+            const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 3600 * 1000);
+            filterTasks = filterTasks.filter(item => {
+                const t = new Date(item.start);
+                return t >= weekStart && t <= weekEnd;
+            });
+        } else if (currentView === "stat") {
+            document.querySelector(".day-title").innerText = "日程数据统计";
+            const total = filterTasks.length;
+            const done = filterTasks.filter(t => t.done).length;
+            const work = filterTasks.filter(t => t.type === "work").length;
+            const study = filterTasks.filter(t => t.type === "study").length;
+            const life = filterTasks.filter(t => t.type === "life").length;
+            const high = filterTasks.filter(t => t.prio === "high").length;
+            wrap.innerHTML = `
+            <div style="padding:20px 0;line-height:1.8;">
+              <div class="stat-view-card">
+                <h4>任务总量概况</h4>
+                <p>全部任务：${total} 条</p>
+                <p>已完成任务：${done} 条</p>
+                <p>完成率：${total > 0 ? Math.round(done / total * 100) : 0}%</p>
+              </div>
+              <div class="stat-view-card">
+                <h4>分类分布</h4>
+                <p>工作任务：${work} 条</p>
+                <p>学习任务：${study} 条</p>
+                <p>生活任务：${life} 条</p>
+              </div>
+              <div class="stat-view-card">
+                <h4>优先级分布</h4>
+                <p>高优先级任务：${high} 条</p>
+                <p>中优先级任务：${filterTasks.filter(t => t.prio === "mid").length} 条</p>
+                <p>低优先级任务：${filterTasks.filter(t => t.prio === "low").length} 条</p>
+              </div>
+            </div>
+          `;
+            return;
+        }
+
+        filterTasks.sort((a, b) => new Date(a.start) - new Date(b.start));
+
+        if (filterTasks.length === 0) {
+            wrap.innerHTML = `
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+              </svg>
+              暂无日程，点击左侧「+ 新建日程」开始规划
+            </div>`;
+            return;
+        }
+
+        filterTasks.forEach((task, index) => {
+            const card = document.createElement("div");
+            let prioClass = `task-prio-${task.prio}`;
+            if (!task.done && isTaskOverdue(task.end)) prioClass = "task-overdue";
+            let runClass = (!task.done && isTaskRunning(task.start, task.end)) ? "task-running" : "";
+            let doneClass = task.done ? "task-done" : "";
+            const sTime = new Date(task.start).toLocaleString("zh-CN");
+            const eTime = new Date(task.end).toLocaleString("zh-CN");
+            card.className = `task-card ${prioClass} ${runClass} ${doneClass}`;
+            card.dataset.id = task.id;
+            card.style.animationDelay = `${index * 0.04}s`;
+            card.innerHTML = `
+            <div class="task-title">${task.title}</div>
+            <div class="task-meta">
+              <span>${sTime} ~ ${eTime}</span>
+              <span>${task.type === "work" ? "工作" : task.type === "study" ? "学习" : "生活"}</span>
+            </div>
+            ${task.desc ? `<div class="task-desc-inline">${task.desc}</div>` : ""}
+            <div class="task-actions">
+              <button class="btn-done">${task.done ? "撤销完成" : "标记完成"}</button>
+              <button class="btn-edit">编辑</button>
+              <button class="btn-del">删除</button>
+            </div>
+          `;
+
+            card.querySelector(".btn-done").onclick = () => {
+                const wasDone = task.done;
+                task.done = !task.done;
+                if (task.done && !wasDone) {
+                    userInfo.completeCount += 1;
+                    userInfo.lastTaskDate = Date.now();
+                    saveUserInfo();
+                    card.classList.add("task-complete-flash");
+                    setTimeout(() => card.classList.remove("task-complete-flash"), 650);
+                }
+                saveStorage();
+                if (task.done && !wasDone) showNotify("已完成一项任务，灵树结出新果实 ✨");
+            };
+            card.querySelector(".btn-edit").onclick = () => openEditModal(task.id);
+            card.querySelector(".btn-del").onclick = () => {
+                card.style.opacity = "0";
+                card.style.transform = "scale(0.92)";
+                setTimeout(() => {
+                    taskList = taskList.filter(t => t.id !== task.id);
+                    saveStorage();
+                    showNotify("任务已删除");
+                }, 220);
+            };
+            wrap.appendChild(card);
+        });
+    }
+
+    // ---- 统计面板 ----
+    function renderStat() {
+        const total = taskList.length;
+        const done = taskList.filter(t => t.done).length;
+        const running = taskList.filter(t => !t.done && isTaskRunning(t.start, t.end)).length;
+        const rate = total === 0 ? "0%" : Math.round(done / total * 100) + "%";
+        document.getElementById("stat-total").innerText = total;
+        document.getElementById("stat-done").innerText = done;
+        document.getElementById("stat-running").innerText = running;
+        document.getElementById("stat-rate").innerText = rate;
+    }
+
+    // ---- 任务弹窗 ----
+    const modal = document.getElementById("task-modal");
+    const inputs = {
+        title: document.getElementById("task-title"),
+        type: document.getElementById("task-type"),
+        prio: document.getElementById("task-prio"),
+        start: document.getElementById("task-start"),
+        end: document.getElementById("task-end"),
+        desc: document.getElementById("task-desc")
+    };
+
+    function openModal() {
+        editTaskId = null;
+        modal.style.display = "flex";
+        const now = new Date();
+        const t1 = new Date(now.getTime() + 3600 * 1000);
+        const t2 = new Date(now.getTime() + 2 * 3600 * 1000);
+        inputs.start.value = t1.toISOString().slice(0, 16);
+        inputs.end.value = t2.toISOString().slice(0, 16);
+        inputs.title.value = "";
+        inputs.desc.value = "";
+        inputs.type.value = "work";
+        inputs.prio.value = "mid";
+    }
+
+    function openEditModal(id) {
+        editTaskId = id;
+        const task = taskList.find(t => t.id === id);
+        if (!task) return;
+        modal.style.display = "flex";
+        inputs.title.value = task.title;
+        inputs.type.value = task.type;
+        inputs.prio.value = task.prio;
+        inputs.start.value = task.start;
+        inputs.end.value = task.end;
+        inputs.desc.value = task.desc || "";
+    }
+
+    function closeModal() { modal.style.display = "none"; }
+
+    document.getElementById("open-modal").onclick = openModal;
+    document.getElementById("close-modal").onclick = closeModal;
+
+    document.getElementById("save-task").onclick = () => {
+        const title = inputs.title.value.trim();
+        const startStr = inputs.start.value.trim();
+        const endStr = inputs.end.value.trim();
+        if (!title) return showNotify("请填写任务标题");
+        if (!startStr || !endStr) return showNotify("请完整选择开始与结束时间");
+        const startTime = new Date(startStr);
+        const endTime = new Date(endStr);
+        if (!isValidDate(startTime) || !isValidDate(endTime)) {
+            return showNotify("选择的时间格式无效，请重新选择");
+        }
+        if (endTime <= startTime) {
+            return showNotify("错误：结束时间不能早于或等于开始时间，请重新调整时间");
+        }
+        const data = {
+            id: editTaskId || Date.now().toString(),
+            title,
+            type: inputs.type.value,
+            prio: inputs.prio.value,
+            start: startStr,
+            end: endStr,
+            desc: inputs.desc.value.trim(),
+            done: false
+        };
+        if (editTaskId) {
+            const idx = taskList.findIndex(t => t.id === editTaskId);
+            if (idx !== -1) taskList[idx] = data;
+        } else {
+            taskList.push(data);
+        }
+        closeModal();
+        saveStorage();
+        showNotify("日程保存成功 ✓");
+    };
+
+    // ---- 专注模式 ----
+    document.getElementById("focus-btn").onclick = () => {
+        document.body.classList.toggle("focus-mode");
+        const isFocus = document.body.classList.contains("focus-mode");
+        const btn = document.getElementById("focus-btn");
+        if (isFocus) {
+            btn.innerText = "退出专注";
+            btn.style.background = "rgba(109,148,192,0.22)";
+            btn.style.color = "var(--accent)";
+            showNotify("已进入专注模式，右上角按钮可随时退出");
+        } else {
+            btn.innerText = "专注模式";
+            btn.style.background = "";
+            btn.style.color = "";
+            showNotify("已退出专注模式");
+        }
+    };
+
+    document.getElementById("focus-exit").onclick = () => {
+        document.body.classList.remove("focus-mode");
+        const btn = document.getElementById("focus-btn");
+        btn.innerText = "专注模式";
+        btn.style.background = "";
+        btn.style.color = "";
+        showNotify("已退出专注模式");
+    };
+
+    // ---- 主题切换 (data-theme 设在 <html> 上以支持 body 后代选择器) ----
+    document.getElementById("theme-switch").onclick = () => {
+        const current = document.documentElement.dataset.theme;
+        const next = current === "dark" ? "" : "dark";
+        document.documentElement.dataset.theme = next;
+        localStorage.setItem(THEME_KEY, next);
+    };
+
+    // ---- Excel 导出 ----
+    document.getElementById("export-data").onclick = () => {
+        if (taskList.length === 0) return showNotify("暂无数据可导出");
+        const exportData = taskList.map(task => ({
+            "任务ID": task.id,
+            "任务标题": task.title,
+            "分类": task.type === "work" ? "工作" : task.type === "study" ? "学习" : "生活",
+            "优先级": task.prio === "high" ? "高" : task.prio === "mid" ? "中" : "低",
+            "开始时间": new Date(task.start).toLocaleString("zh-CN"),
+            "结束时间": new Date(task.end).toLocaleString("zh-CN"),
+            "备注": task.desc,
+            "完成状态": task.done ? "已完成" : "未完成"
+        }));
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        XLSX.utils.book_append_sheet(wb, ws, "日程数据");
+        const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "日程管理数据.xlsx";
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showNotify("Excel数据导出完成");
+    };
+
+    // ---- 清空已完成 ----
+    document.getElementById("clear-done").onclick = () => {
+        const doneCount = taskList.filter(t => t.done).length;
+        if (doneCount === 0) return showNotify("没有已完成的任务");
+        taskList = taskList.filter(t => !t.done);
+        saveStorage();
+        showNotify(`已清空 ${doneCount} 项已完成任务`);
+    };
+
+    // ---- 视图切换 ----
+    document.querySelectorAll("[data-view]").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll("[data-view]").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentView = btn.dataset.view;
+            renderAll();
+        };
+    });
+
+    // ---- 分类筛选 (修复: 补充缺失的事件绑定) ----
+    document.querySelectorAll("[data-filter]").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll("[data-filter]").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentFilter = btn.dataset.filter;
+            renderAll();
+        };
+    });
+
+    // ================================================================
+    // THREE.JS — 背景粒子系统 (修复: 删除空壳包装函数，统一结构)
+    // ================================================================
+    function getWeatherType() {
+        const hour = new Date().getHours();
+        if (hour >= 12 && hour <= 18) return "sunny";
+        if (hour >= 6 && hour <= 12) return "cloudy";
+        return "rain";
+    }
+
+    function initBgThree() {
+        const canvas = document.getElementById("bg-canvas");
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.position.z = 30;
+
+        const count = 600;
+        const geo = new THREE.BufferGeometry();
+        const pos = new Float32Array(count * 3);
+        const vel = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+            pos[i * 3] = (Math.random() - 0.5) * 60;
+            pos[i * 3 + 1] = (Math.random() - 0.5) * 40;
+            pos[i * 3 + 2] = (Math.random() - 0.5) * 20;
+            vel[i * 3] = (Math.random() - 0.5) * 0.02;
+            vel[i * 3 + 1] = (Math.random() - 0.5) * 0.02;
+            vel[i * 3 + 2] = (Math.random() - 0.5) * 0.01;
+        }
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+
+        const weather = getWeatherType();
+        let particleColor;
+        if (weather === "sunny") particleColor = new THREE.Color("#7a9ec4");
+        else if (weather === "cloudy") particleColor = new THREE.Color("#b0b8c8");
+        else particleColor = new THREE.Color("#a0b4cc");
+
+        const particleMat = new THREE.PointsMaterial({
+            size: 0.18,
+            transparent: true,
+            opacity: 0.45,
+            sizeAttenuation: true,
+            color: particleColor,
+            blending: THREE.NormalBlending,
+            depthWrite: false,
+        });
+
+        const points = new THREE.Points(geo, particleMat);
+        scene.add(points);
+
+        window.addEventListener("resize", () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const pArr = geo.attributes.position.array;
+            for (let i = 0; i < count; i++) {
+                pArr[i * 3] += vel[i * 3];
+                pArr[i * 3 + 1] += vel[i * 3 + 1];
+                if (Math.abs(pArr[i * 3]) > 30) vel[i * 3] *= -1;
+                if (Math.abs(pArr[i * 3 + 1]) > 20) vel[i * 3 + 1] *= -1;
+            }
+            geo.attributes.position.needsUpdate = true;
+            points.rotation.y += 0.0007;
+            renderer.render(scene, camera);
+        }
+        animate();
+    }
+
+    // ================================================================
+    // THREE.JS — 轨道可视化
+    // ================================================================
+    function initOrbitThree() {
+        const canvas = document.getElementById("orbit-canvas");
+        const wrap = document.getElementById("orbit-canvas-wrap");
+        const w = wrap.clientWidth;
+        const h = wrap.clientHeight;
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 100);
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+        renderer.setSize(w, h);
+        camera.position.set(0, -0.15, 4.2);
+
+        const ringGeo = new THREE.RingGeometry(1.3, 1.7, 64);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0x7a9ec4,
+            transparent: true,
+            opacity: 0.18,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        scene.add(ring);
+
+        const pointGroup = new THREE.Group();
+        scene.add(pointGroup);
+
+        window.renderOrbitPoints = function() {
+            while (pointGroup.children.length > 0) {
+                pointGroup.remove(pointGroup.children[0]);
+            }
+            taskList.forEach(task => {
+                const tStart = new Date(task.start).getHours();
+                const rad = (tStart / 24) * Math.PI * 2;
+                const r = 1.5;
+                const x = Math.cos(rad) * r;
+                const y = Math.sin(rad) * r;
+                let color = 0x7DA686;
+                let size = 0.08;
+                if (task.done) color = 0xA8B8C8;
+                else if (isTaskRunning(task.start, task.end)) { color = 0x6D94C0;
+                    size = 0.14; } else if (isTaskOverdue(task.end)) color = 0xCC8A8A;
+                const pGeo = new THREE.SphereGeometry(size, 10, 10);
+                const pMat = new THREE.MeshBasicMaterial({
+                    color,
+                    transparent: true,
+                    opacity: 0.82,
+                    depthWrite: false,
+                });
+                const mesh = new THREE.Mesh(pGeo, pMat);
+                mesh.position.set(x, y, 0.05);
+                pointGroup.add(mesh);
+            });
+        };
+
+        window.addEventListener("resize", () => {
+            const nw = wrap.clientWidth;
+            const nh = wrap.clientHeight;
+            camera.aspect = nw / nh;
+            camera.updateProjectionMatrix();
+            renderer.setSize(nw, nh);
+        });
+
+        function animateOrbit() {
+            requestAnimationFrame(animateOrbit);
+            ring.rotation.z += 0.0015;
+            pointGroup.rotation.z += 0.0015;
+            renderer.render(scene, camera);
+        }
+        animateOrbit();
+        window.renderOrbitPoints();
+    }
+
+    // ================================================================
+    // THREE.JS — 底部许愿灵树
+    // ================================================================
+    function initWishTree() {
+        const canvas = document.getElementById("tree-canvas");
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 50);
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: false });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+        renderer.setClearColor(0x000000, 0);
+        camera.position.set(0, 2, 8);
+
+        // 树干 — depthWrite: true 确保稳定遮挡
+        const trunkGeo = new THREE.CylinderGeometry(0.12, 0.22, 3.5, 12);
+        const trunkMat = new THREE.MeshBasicMaterial({
+            color: 0x6B5848,
+            transparent: true,
+            opacity: 0.78,
+            depthWrite: true,
+        });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.y = -1.8;
+        trunk.renderOrder = 0;
+        scene.add(trunk);
+
+        const branchGroup = new THREE.Group();
+        branchGroup.renderOrder = 1;
+        scene.add(branchGroup);
+
+        const fruitPool = [];
+
+        const now = Date.now();
+        const idleDay = (now - userInfo.lastTaskDate) / (1000 * 60 * 60 * 24);
+        const isWither = idleDay > 7;
+
+        const leafColor = isWither ? 0xB8A268 : 0x78B978;
+
+        function createBranch(x, z, scale) {
+            const leafGeo = new THREE.SphereGeometry(0.8 * scale, 8, 8);
+            const leafMat = new THREE.MeshBasicMaterial({
+                color: leafColor,
+                transparent: true,
+                opacity: 0.75,
+                depthWrite: true,
+            });
+            const leaf = new THREE.Mesh(leafGeo, leafMat);
+            leaf.position.set(x, 0, z);
+            leaf.renderOrder = 1;
+            branchGroup.add(leaf);
+        }
+        createBranch(-1.4, -1, 1);
+        createBranch(1.2, -0.6, 0.85);
+        createBranch(-0.6, 1.2, 0.9);
+        createBranch(1.3, 0.9, 0.75);
+
+        for (let i = 0; i < userInfo.completeCount; i++) {
+            const fruitGeo = new THREE.SphereGeometry(0.16, 10, 10);
+            const fruitMat = new THREE.MeshBasicMaterial({
+                color: new THREE.Color("#6D94C0"),
+                transparent: true,
+                opacity: 0.85,
+                depthWrite: false,
+            });
+            const fruit = new THREE.Mesh(fruitGeo, fruitMat);
+            fruit.position.set(
+                (Math.random() - 0.5) * 2.2,
+                Math.random() * 1.6,
+                (Math.random() - 0.5) * 1.6
+            );
+            fruit.userData.floatSpeed = 0.008 + Math.random() * 0.004;
+            fruit.userData.baseOpacity = 0.75 + Math.random() * 0.15;
+            fruit.renderOrder = 2;
+            fruitPool.push(fruit);
+            branchGroup.add(fruit);
+        }
+
+        let leafFallArr = [];
+        if (isWither) {
+            for (let i = 0; i < 25; i++) {
+                const fallGeo = new THREE.CircleGeometry(0.12, 6);
+                const fallMat = new THREE.MeshBasicMaterial({
+                    color: 0xD4B878,
+                    transparent: true,
+                    opacity: 0.7,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                });
+                const fallLeaf = new THREE.Mesh(fallGeo, fallMat);
+                fallLeaf.position.set((Math.random() - 0.5) * 4, 3, (Math.random() - 0.5) * 3);
+                fallLeaf.userData.speedY = 0.012 + Math.random() * 0.008;
+                fallLeaf.renderOrder = 3;
+                leafFallArr.push(fallLeaf);
+                scene.add(fallLeaf);
+            }
+        }
+
+        window.addEventListener("resize", () => {
+            const w = canvas.clientWidth;
+            const h = canvas.clientHeight;
+            if (w === 0 || h === 0) return;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        });
+
+        function treeAnimate() {
+            requestAnimationFrame(treeAnimate);
+            branchGroup.rotation.y += 0.0006;
+            fruitPool.forEach(fruit => {
+                fruit.position.y += Math.sin(Date.now() * 0.001 * fruit.userData.floatSpeed) * 0.004;
+                // 用 opacity 呼吸替代无效的 emissiveIntensity 动画
+                const pulse = 0.35 + Math.sin(Date.now() * 0.0018 + fruit.userData.floatSpeed * 10) * 0.15;
+                fruit.material.opacity = fruit.userData.baseOpacity * (0.88 + pulse * 0.12);
+            });
+            leafFallArr.forEach(leaf => {
+                leaf.position.y -= leaf.userData.speedY;
+                leaf.rotation.z += 0.012;
+                if (leaf.position.y < -3) {
+                    leaf.position.y = 3;
+                    leaf.position.x = (Math.random() - 0.5) * 4;
+                    leaf.position.z = (Math.random() - 0.5) * 3;
+                }
+            });
+            renderer.render(scene, camera);
+        }
+        treeAnimate();
+    }
+
+    // ================================================================
+    // ================================================================
+    // 初始化入口
+    // ================================================================
+    // ① 任务渲染：纯 DOM 操作，立即执行，不等任何资源
+    renderAll();
+
+    // ② Three.js 场景：THREE 已由前置 <script> 加载完毕，仅需等首帧
+    //    CSS 布局计算完成（~16ms），远快于 window.onload（需等背景图下载）
+    let _threeReady = false;
+    requestAnimationFrame(() => {
+        if (_threeReady) return;
+        _threeReady = true;
+        initBgThree();
+        initOrbitThree();
+        initWishTree();
+        if (typeof renderOrbitPoints === "function") renderOrbitPoints();
+    });
+
+    // ③ 兜底：万一 requestAnimationFrame 因特殊原因未触发，onload 补刀
+    window.onload = () => {
+        if (!_threeReady) {
+            _threeReady = true;
+            initBgThree();
+            initOrbitThree();
+            initWishTree();
+            if (typeof renderOrbitPoints === "function") renderOrbitPoints();
+        }
+
+        if (document.body.classList.contains("focus-mode")) {
+            const fb = document.getElementById("focus-btn");
+            fb.innerText = "退出专注";
+            fb.style.background = "rgba(109,148,192,0.22)";
+            fb.style.color = "var(--accent)";
+        }
+
+        setInterval(() => renderAll(), 60000);
+    };
+</script>
+
 </body>
+
 </html>
