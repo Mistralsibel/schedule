@@ -1237,6 +1237,41 @@
             background: rgba(139, 175, 214, 0.28);
         }
 
+        /* ---------- BRAND LOGO ---------- */
+        .brand-logo {
+            position: fixed;
+            bottom: 22px;
+            right: 24px;
+            z-index: 10;
+            pointer-events: none;
+            user-select: none;
+            transition: opacity var(--duration-slow) var(--ease-spring);
+        }
+
+        .brand-logo img {
+            display: block;
+            height: 36px;
+            width: auto;
+            opacity: 0.55;
+            transition: opacity var(--duration-normal) var(--ease-spring);
+        }
+
+        .brand-logo img:hover {
+            opacity: 0.85;
+        }
+
+        .logo-dark {
+            display: none;
+        }
+
+        [data-theme="dark"] .logo-light {
+            display: none;
+        }
+
+        [data-theme="dark"] .logo-dark {
+            display: block;
+        }
+
         /* ---------- REDUCED MOTION ---------- */
         @media (prefers-reduced-motion: reduce) {
             *,
@@ -1334,6 +1369,12 @@
 <div class="wish-tree-wrap">
     <canvas id="tree-canvas"></canvas>
     <div class="tree-tip">每完成一项任务，灵树便会结出发光果实</div>
+</div>
+
+<!-- ====== 品牌标识 (右下角) ====== -->
+<div class="brand-logo">
+    <img class="logo-light" src="https://sybel.oss-cn-hangzhou.aliyuncs.com/logo-daytime.png" alt="Chrono">
+    <img class="logo-dark" src="https://sybel.oss-cn-hangzhou.aliyuncs.com/logo-night.png" alt="Chrono">
 </div>
 
 <!-- ====== 修改用户名弹窗 ====== -->
