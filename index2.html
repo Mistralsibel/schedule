@@ -188,7 +188,7 @@
         }
 
         [data-theme="dark"] body {
-            background-image: url("https://sybel.oss-cn-hangzhou.aliyuncs.com/star-big.webp");
+            background-image: url("https://sybel.oss-cn-hangzhou.aliyuncs.com/n1.webp");
         }
 
         /* 双层柔焦磨砂遮罩 */
@@ -2073,13 +2073,19 @@
     }
 
     // ================================================================
-    // 统一初始化入口 (修复: 合并重复的 window.onload，确保灵树正确初始化)
+    // 初始化入口
     // ================================================================
+    // 任务渲染不依赖任何外部资源，直接在脚本执行时立即渲染
+    // 确保用户打开页面第一时间看到已有日程，无需等待图片/Three.js 加载
+    renderAll();
+
+    // Three.js 等外部资源需等待加载完成后再初始化
     window.onload = () => {
         initBgThree();
         initOrbitThree();
         initWishTree();
-        renderAll();
+        // Three.js 初始化完成后刷新轨道视图
+        if (typeof renderOrbitPoints === "function") renderOrbitPoints();
 
         if (document.body.classList.contains("focus-mode")) {
             const fb = document.getElementById("focus-btn");
