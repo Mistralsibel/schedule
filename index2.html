@@ -188,7 +188,7 @@
         }
 
         [data-theme="dark"] body {
-            background-image: url("https://sybel.oss-cn-hangzhou.aliyuncs.com/n1.webp");
+            background-image: url("https://sybel.oss-cn-hangzhou.aliyuncs.com/n4.webp");
         }
 
         /* 双层柔焦磨砂遮罩 */
@@ -2073,19 +2073,33 @@
     }
 
     // ================================================================
+    // ================================================================
     // 初始化入口
     // ================================================================
-    // 任务渲染不依赖任何外部资源，直接在脚本执行时立即渲染
-    // 确保用户打开页面第一时间看到已有日程，无需等待图片/Three.js 加载
+    // ① 任务渲染：纯 DOM 操作，立即执行，不等任何资源
     renderAll();
 
-    // Three.js 等外部资源需等待加载完成后再初始化
-    window.onload = () => {
+    // ② Three.js 场景：THREE 已由前置 <script> 加载完毕，仅需等首帧
+    //    CSS 布局计算完成（~16ms），远快于 window.onload（需等背景图下载）
+    let _threeReady = false;
+    requestAnimationFrame(() => {
+        if (_threeReady) return;
+        _threeReady = true;
         initBgThree();
         initOrbitThree();
         initWishTree();
-        // Three.js 初始化完成后刷新轨道视图
         if (typeof renderOrbitPoints === "function") renderOrbitPoints();
+    });
+
+    // ③ 兜底：万一 requestAnimationFrame 因特殊原因未触发，onload 补刀
+    window.onload = () => {
+        if (!_threeReady) {
+            _threeReady = true;
+            initBgThree();
+            initOrbitThree();
+            initWishTree();
+            if (typeof renderOrbitPoints === "function") renderOrbitPoints();
+        }
 
         if (document.body.classList.contains("focus-mode")) {
             const fb = document.getElementById("focus-btn");
