@@ -347,12 +347,12 @@
             background: var(--bg-input);
             border: 1px solid var(--border-input);
             border-radius: var(--radius-md);
-            padding: 12px 14px;
+            padding: 13px 12px;
             color: var(--text-primary);
             font-family: var(--font-serif);
-            font-size: 17px;
-            letter-spacing: 0.04em;
-            line-height: 1.7;
+            font-size: 14px;
+            letter-spacing: 0.02em;
+            line-height: 1.5;
             font-weight: 300;
             min-height: 50px;
             backdrop-filter: blur(8px);
@@ -372,8 +372,8 @@
             font-family: var(--font-serif);
             color: var(--text-muted);
             font-style: italic;
-            letter-spacing: 0.04em;
-            font-size: 15px;
+            letter-spacing: 0.02em;
+            font-size: 13px;
         }
 
         /* ---------- THEME TOGGLE ---------- */
@@ -1270,10 +1270,6 @@
                         </button>
                     </div>
                     <p class="date-text" id="today-date"></p>
-                    <div class="motto-wrap">
-                        <input class="motto-input" id="user-motto" placeholder="写下今日寄语，为自己打气～">
-                        <p id="motto-warn-text" style="color:#CC8A8A; font-size:12px; margin-top:5px; display:none;">寄语不能超过15个字！</p>
-                    </div>
                 </div>
                 <button class="theme-toggle-btn" id="theme-switch" aria-label="切换昼夜主题">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1282,6 +1278,10 @@
                 </svg>
                 <span class="theme-text">昼夜</span>
             </button>
+        </div>
+        <div class="motto-wrap">
+            <input class="motto-input" id="user-motto" placeholder="写下今日寄语，为自己打气～">
+            <p id="motto-warn-text" style="color:#CC8A8A; font-size:12px; margin-top:5px; display:none;">寄语不能超过15个字！</p>
         </div>
     </div>
 
