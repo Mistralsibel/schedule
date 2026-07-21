@@ -1,0 +1,1525 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrono · 治愈3D日程管理器</title>
+    <!-- Excel导出库 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, serif;
+        }
+
+        :root {
+            --transition-main: 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+            --high-prio: #73a2d8;
+            --text-primary: #222222;
+            --text-secondary: #666666;
+            --border-light: rgba(255, 255, 255, 0.35);
+        }
+
+        [data-theme="dark"] {
+            --text-primary: #f0f0f0;
+            --text-secondary: #aaaaaa;
+            --border-light: rgba(255, 255, 255, 0.12);
+        }
+
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background-image: url("https://sybel.oss-cn-hangzhou.aliyuncs.com/beijing%20%281%29.jpg");
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: cover;
+            background-attachment: fixed;
+            color: var(--text-primary);
+            transition: var(--transition-main);
+            transform: scale(1.04);
+        }
+
+        [data-theme="dark"] body {
+            background-image: url("https://sybel.oss-cn-hangzhou.aliyuncs.com/star.jpg");
+        }
+
+        /* 双层柔焦磨砂遮罩，顶级氛围感分层 */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: rgba(250, 250, 250, 0.68);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            transition: var(--transition-main);
+        }
+
+        [data-theme="dark"] body::before {
+            background: rgba(8, 10, 18, 0.72);
+            backdrop-filter: blur(4px);
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.06) 100%);
+            pointer-events: none;
+            transition: var(--transition-main);
+        }
+
+        [data-theme="dark"] body::after {
+            background: radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.18) 100%);
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .app-wrap {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 32px;
+            padding: 36px;
+            height: 100vh;
+        }
+
+        /* 左侧侧边栏 固定窄栏，黄金280px宽度 */
+        .sidebar-left {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+
+.panel-card {
+  background: rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  border: 1px solid var(--border-light);
+  padding: 24px;
+  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.05);
+  transition: var(--transition-main);
+}
+[data-theme="dark"] .panel-card {
+  background: rgba(30, 34, 44, 0.38);
+  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.15);
+}
+.panel-card:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+[data-theme="dark"] .panel-card:hover {
+  background: rgba(30, 34, 44, 0.46);
+}
+        .panel-username h1 {
+            font-size: 22px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .panel-username p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+/* 头部卡片内弹性布局，彻底杜绝元素溢出 */
+.panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  width: 100%;
+}
+.panel-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+        .theme-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            /* 原8px 12px 缩小内边距 */
+            border-radius: 12px;
+            border: 1px solid rgba(115, 162, 216, 0.3);
+            background: rgba(115, 162, 216, 0.12);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            color: var(--high-prio);
+            cursor: pointer;
+            transition: var(--transition-main);
+            white-space: nowrap;
+            box-shadow: 0 0 8px rgba(115, 162, 216, 0.06);
+            flex-shrink: 0;
+            /* 固定右侧按钮不被压缩 */
+        }
+
+        .theme-toggle-btn:hover {
+            background: rgba(115, 162, 216, 0.22);
+            box-shadow: 0 0 14px rgba(115, 162, 216, 0.18);
+            transform: translateY(-2px);
+        }
+
+        /* 深色模式专属配色，柔和紫蓝氛围感底色 */
+        [data-theme="dark"] .theme-toggle-btn {
+            background: rgba(140, 170, 220, 0.16);
+            color: #a1b8e8;
+            box-shadow: 0 0 8px rgba(140, 170, 220, 0.1);
+        }
+
+        [data-theme="dark"] .theme-toggle-btn:hover {
+            background: rgba(140, 170, 220, 0.26);
+            box-shadow: 0 0 16px rgba(140, 170, 220, 0.22);
+        }
+
+        .theme-toggle-btn svg {
+            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        [data-theme="dark"] .theme-toggle-btn svg {
+            transform: rotate(180deg);
+        }
+
+        .theme-text {
+            font-size: 13px;
+            letter-spacing: 0.3px;
+        }
+
+        .func-btn {
+            width: 100%;
+            padding: 13px 16px;
+            border-radius: 12px;
+            border: none;
+            background: transparent;
+            text-align: left;
+            font-size: 15px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: var(--transition-main);
+        }
+
+        .func-btn:hover {
+            background: rgba(115, 162, 216, 0.12);
+        }
+
+        .func-btn.active {
+            background: var(--glow);
+        }
+
+        .create-task-btn {
+            margin-top: 12px;
+            background: var(--high-prio);
+            color: #fff;
+            font-weight: 500;
+            justify-content: center;
+        }
+
+        /* 右侧主日程区域 */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        /* 滚动条极致美化，极简隐形风格 */
+        .main-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .main-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .main-content::-webkit-scrollbar-thumb {
+            background: rgba(115, 162, 216, 0.25);
+            border-radius: 99px;
+        }
+
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .day-title {
+            font-size: 26px;
+            font-weight: 500;
+        }
+
+        .control-group button {
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border-light);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            margin-left: 8px;
+            transition: var(--transition-main);
+        }
+
+        .control-group button:hover {
+            background: var(--glow);
+        }
+
+        .task-card {
+            background: rgba(255, 255, 255, 0.28);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.36);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 3px 16px rgba(0, 0, 0, 0.04);
+            transition: var(--transition-main);
+            cursor: grab;
+            position: relative;
+            overflow: hidden;
+        }
+
+        [data-theme="dark"] .task-card {
+            background: rgba(26, 30, 40, 0.34);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 3px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.36);
+        }
+
+        [data-theme="dark"] .task-card:hover {
+            background: rgba(26, 30, 40, 0.42);
+        }
+
+        .task-card:active {
+            cursor: grabbing;
+        }
+
+        .task-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .task-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .task-prio-high::before {
+            background: var(--high-prio);
+        }
+
+        .task-prio-mid::before {
+            background: var(--mid-prio);
+        }
+
+        .task-prio-low::before {
+            background: var(--low-prio);
+        }
+
+        .task-overdue::before {
+            background: var(--overdue);
+        }
+
+        .task-running {
+            animation: breathe 2.2s infinite ease-in-out;
+        }
+
+        @keyframes breathe {
+
+            0%,
+            100% {
+                box-shadow: 0 0 12px var(--glow);
+            }
+
+            50% {
+                box-shadow: 0 0 24px var(--glow);
+            }
+        }
+
+        .task-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .task-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .task-done {
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .task-actions button {
+            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .sidebar-right {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #orbit-canvas-wrap {
+            width: 100%;
+            height: 280px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #orbit-canvas {
+            width: 90%;
+            height: 90%;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .modal-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(6px);
+            z-index: 99;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-box {
+            width: 480px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+            padding: 26px;
+            box-shadow: var(--shadow-hover);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            margin-bottom: 16px;
+        }
+
+        .form-row label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+
+        .form-row input,
+        .form-row select,
+        .form-row textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-light);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            font-size: 15px;
+            transition: var(--transition-main);
+        }
+
+        input[type="datetime-local"] {
+            -webkit-appearance: none;
+            appearance: none;
+            outline: none;
+            position: relative;
+        }
+
+        input[type="datetime-local"]:hover {
+            border-color: var(--high-prio);
+            box-shadow: 0 0 6px rgba(115, 162, 216, 0.2);
+        }
+
+        input[type="datetime-local"]:focus {
+            border-color: var(--high-prio);
+            box-shadow: 0 0 10px var(--glow-strong), inset 0 0 6px rgba(115, 162, 216, 0.08);
+            animation: dtBreathe 2.5s infinite ease-in-out;
+        }
+
+        @keyframes dtBreathe {
+
+            0%,
+            100% {
+                box-shadow: 0 0 8px var(--glow);
+            }
+
+            50% {
+                box-shadow: 0 0 14px var(--glow-strong);
+            }
+        }
+
+        ::-webkit-datetime-edit {
+            padding: 4px 6px;
+        }
+
+        ::-webkit-datetime-edit-text {
+            color: var(--high-prio);
+            padding: 0 4px;
+            opacity: 0.75;
+        }
+
+        ::-webkit-datetime-edit-year-field:hover,
+        ::-webkit-datetime-edit-month-field:hover,
+        ::-webkit-datetime-edit-day-field:hover,
+        ::-webkit-datetime-edit-hour-field:hover,
+        ::-webkit-datetime-edit-minute-field:hover {
+            background: rgba(115, 162, 216, 0.12);
+            border-radius: 6px;
+        }
+
+        ::-webkit-calendar-picker-indicator {
+            width: 26px;
+            height: 26px;
+            margin-left: 6px;
+            background-size: 18px;
+            background-repeat: no-repeat;
+            background-position: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: var(--transition-main);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2373a2d8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M8 2v3m8-3v3M3 10h18M5 6h14a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z'%3E%3C/path%3E%3C/svg%3E");
+        }
+
+        ::-webkit-calendar-picker-indicator:hover {
+            background: rgba(115, 162, 216, 0.15);
+            box-shadow: 0 0 6px rgba(115, 162, 216, 0.3);
+        }
+
+        ::-webkit-date-and-time-picker {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            box-shadow: var(--shadow-hover);
+        }
+
+        ::-webkit-calendar-day-selected {
+            background: linear-gradient(135deg, #73a2d8, #89b8e2) !important;
+            color: #fff !important;
+            border-radius: 10px !important;
+            box-shadow: 0 0 8px rgba(115, 162, 216, 0.4) !important;
+            border: none !important;
+        }
+
+        ::-webkit-datetime-edit-hour-field,
+        ::-webkit-datetime-edit-minute-field {
+            transition: background 0.2s ease;
+            border-radius: 6px;
+            padding: 2px 4px;
+        }
+
+        [data-theme="dark"] ::-webkit-calendar-picker-indicator {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1b8d8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M8 2v3m8-3v3M3 10h18M5 6h14a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z'%3E%3C/path%3E%3C/svg%3E");
+        }
+
+        .form-row textarea {
+            resize: none;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .modal-buttons button {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition-main);
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--border-light) !important;
+            color: var(--text-primary);
+        }
+
+        .btn-save {
+            background: var(--high-prio);
+            color: white;
+        }
+
+        body.focus-mode .sidebar-left,
+        body.focus-mode .sidebar-right,
+        body.focus-mode #bg-canvas {
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        body.focus-mode .main-content {
+            width: 600px;
+            margin: 0 auto;
+        }
+
+        .notify-bar {
+            position: fixed;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            padding: 14px 28px;
+            border-radius: 16px;
+            border: 1px solid var(--glow-strong);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 18px var(--glow);
+            z-index: 9999;
+            transition: top 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .notify-bar.show {
+            top: 28px;
+        }
+
+        /* 专注模式悬浮退出按钮，仅开启专注时显示 */
+        .focus-exit-btn {
+            position: fixed;
+            top: 32px;
+            right: 32px;
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 14px;
+            border: none;
+            background: linear-gradient(135deg, #73a2d8, #89b8e2);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 6px 24px rgba(115, 162, 216, 0.35);
+            cursor: pointer;
+            transition: var(--transition-main);
+            backdrop-filter: blur(10px);
+        }
+
+        .focus-exit-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(115, 162, 216, 0.45);
+        }
+
+        body.focus-mode .focus-exit-btn {
+            display: flex;
+        }
+
+        /* ========== 1. 昵称、寄语、主题配色面板样式 ========== */
+        .name-edit-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .edit-name-btn {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            border: 1px solid var(--border-light);
+            background: transparent;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition-main);
+        }
+
+        .edit-name-btn:hover {
+            background: var(--glow);
+            color: var(--high-prio);
+        }
+
+        .motto-wrap {
+            margin-top: 12px;
+        }
+
+        .motto-input {
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.26);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-family: "KaiTi", "STKaiti", "SimSun", serif;
+            font-size: 17px;
+            /* 字号放大 */
+            letter-spacing: 1px;
+            line-height: 1.7;
+            font-weight: 300;
+            min-height: 52px;
+            /* 加高输入框，防止文字被截断遮挡 */
+            backdrop-filter: blur(8px);
+            transition: var(--transition-main);
+        }
+
+        [data-theme="dark"] .motto-input {
+            background: rgba(30, 34, 44, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .motto-input:focus {
+            outline: none;
+            border-color: var(--high-prio);
+            background: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 0 10px rgba(115, 162, 216, 0.16);
+        }
+
+        [data-theme="dark"] .motto-input:focus {
+            background: rgba(30, 34, 44, 0.34);
+        }
+
+        .motto-input::placeholder {
+            font-family: "KaiTi", "STKaiti", serif;
+            color: var(--text-secondary);
+            opacity: 0.6;
+            font-style: italic;
+            letter-spacing: 1.2px;
+            font-size: 16px;
+        }
+
+        /* 修改昵称弹窗 */
+        #name-modal {
+            z-index: 100;
+        }
+
+        /* 底部许愿灵树固定底层，不占用布局流 */
+        .wish-tree-wrap {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 420px;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+            background: linear-gradient(to top, rgba(115, 162, 216, 0.06), transparent);
+        }
+
+        #tree-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .tree-tip {
+            position: absolute;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: var(--text-secondary);
+            letter-spacing: 0.6px;
+            backdrop-filter: blur(16px);
+            background: rgba(255, 255, 255, 0.28);
+            padding: 8px 22px;
+            border-radius: 24px;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            transition: var(--transition-main);
+        }
+
+        body.focus-mode .wish-tree-wrap {
+            opacity: 0.08;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="bg-canvas"></canvas>
+    <div class="notify-bar" id="notify">日程提醒</div>
+    <div class="app-wrap">
+        <div class="sidebar-left">
+            <div class="panel-card panel-username">
+                <div class="panel-header-row">
+                    <div class="panel-title-wrap">
+                        <div class="name-edit-wrap">
+                            <h1 id="user-name-display">Chrono 日程</h1>
+                            <button class="edit-name-btn" id="open-name-modal">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"
+                                    viewBox="0 0 24 24">
+                                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <p id="today-date"></p>
+                        <div class="motto-wrap">
+                            <input class="motto-input" id="user-motto" placeholder="写下今日寄语，为自己打气～">
+                            <p class="motto-warn" id="motto-warn-text"
+                                style="color:#e8a8b8; font-size:13px; margin-top:6px; display:none;">寄语不能超过15个字！</p>
+                        </div>
+                    </div>
+                    <button class="theme-toggle-btn" id="theme-switch">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                        <span class="theme-text">昼夜</span>
+                    </button>
+                </div>
+            </div>
+            <div class="panel-card">
+                <button class="func-btn active" data-view="day">今日日程</button>
+                <button class="func-btn" data-view="week">本周总览</button>
+                <button class="func-btn" data-view="stat">数据统计</button>
+                <button class="func-btn" id="focus-btn">专注模式</button>
+                <button class="func-btn create-task-btn" id="open-modal">+ 新建日程</button>
+            </div>
+            <div class="panel-card">
+                <div style="margin-bottom:10px;font-size:14px;color:var(--text-secondary)">快捷分类</div>
+                <button class="func-btn" data-filter="all">全部任务</button>
+                <button class="func-btn" data-filter="work">工作</button>
+                <button class="func-btn" data-filter="study">学习</button>
+                <button class="func-btn" data-filter="life">生活</button>
+            </div>
+        </div>
+        <div class="main-content" id="task-container">
+            <div class="main-header">
+                <h2 class="day-title">今日安排</h2>
+                <div class="control-group">
+                    <button id="export-data">导出数据</button>
+                    <button id="clear-done">清空已完成</button>
+                </div>
+            </div>
+            <div id="task-list"></div>
+        </div>
+        <div class="sidebar-right">
+            <div class="panel-card" id="orbit-canvas-wrap">
+                <canvas id="orbit-canvas"></canvas>
+            </div>
+            <div class="panel-card">
+                <h3 style="margin-bottom:14px;font-size:16px">今日统计</h3>
+                <div class="stat-item"><span>总任务</span><span id="stat-total">0</span></div>
+                <div class="stat-item"><span>已完成</span><span id="stat-done">0</span></div>
+                <div class="stat-item"><span>进行中</span><span id="stat-running">0</span></div>
+                <div class="stat-item"><span>完成率</span><span id="stat-rate">0%</span></div>
+            </div>
+        </div>
+    </div>
+    <!-- 底部许愿灵树 3D画布 -->
+    <div class="wish-tree-wrap">
+        <canvas id="tree-canvas"></canvas>
+        <div class="tree-tip">每完成一项任务，灵树便会结出发光果实</div>
+    </div>
+    <!-- 修改用户名弹窗 -->
+    <div class="modal-mask" id="name-modal">
+        <div class="modal-box">
+            <h3 class="modal-title">修改你的专属昵称</h3>
+            <div class="form-row">
+                <label>主人翁昵称</label>
+                <input type="text" id="new-user-name" placeholder="输入你的名字">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" id="close-name-modal">取消</button>
+                <button class="btn-save" id="save-name">确认修改</button>
+            </div>
+        </div>
+    </div>
+    <!-- 专注模式悬浮退出按钮 -->
+    <div class="focus-exit-btn" id="focus-exit">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        <span>退出专注</span>
+    </div>
+    <div class="modal-mask" id="task-modal">
+        <div class="modal-box">
+            <h3 class="modal-title">新建日程任务</h3>
+            <div class="form-row">
+                <label>任务标题</label>
+                <input type="text" id="task-title" placeholder="输入任务名称">
+            </div>
+            <div class="form-row">
+                <label>分类</label>
+                <select id="task-type">
+                    <option value="work">工作</option>
+                    <option value="study">学习</option>
+                    <option value="life">生活</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label>优先级</label>
+                <select id="task-prio">
+                    <option value="high">高优先级</option>
+                    <option value="mid">中优先级</option>
+                    <option value="low">低优先级</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label>开始时间</label>
+                <input type="datetime-local" id="task-start">
+            </div>
+            <div class="form-row">
+                <label>结束时间</label>
+                <input type="datetime-local" id="task-end">
+            </div>
+            <div class="form-row">
+                <label>备注信息</label>
+                <textarea id="task-desc" rows="3" placeholder="补充说明、地点等"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" id="close-modal">取消</button>
+                <button class="btn-save" id="save-task">保存任务</button>
+            </div>
+        </div>
+    </div>
+    <!-- 专注模式专用悬浮退出按钮 -->
+    <div class="focus-exit-btn" id="focus-exit">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        <span>退出专注</span>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script>
+        const STORAGE_KEY = "chrono-task-data";
+        // 个性化本地存储key
+        const USER_STORAGE = "chrono-user-info";
+        let userInfo = JSON.parse(localStorage.getItem(USER_STORAGE)) || {
+            name: "Chrono 日程",
+            motto: "",
+            lastTaskDate: Date.now(),
+            completeCount: 0
+        };
+        // 初始化加载用户信息
+        document.getElementById("user-name-display").innerText = userInfo.name;
+        document.getElementById("user-motto").value = userInfo.motto;
+        // 保存用户配置
+        function saveUserInfo() {
+            localStorage.setItem(USER_STORAGE, JSON.stringify(userInfo));
+        }
+        // 修改昵称弹窗逻辑
+        const nameModal = document.getElementById("name-modal");
+        document.getElementById("open-name-modal").onclick = () => {
+            document.getElementById("new-user-name").value = userInfo.name;
+            nameModal.style.display = "flex";
+        }
+        document.getElementById("close-name-modal").onclick = () => nameModal.style.display = "none";
+        document.getElementById("save-name").onclick = () => {
+            const newName = document.getElementById("new-user-name").value.trim();
+            if (!newName) return showNotify("昵称不能为空");
+            userInfo.name = newName;
+            document.getElementById("user-name-display").innerText = newName;
+            saveUserInfo();
+            nameModal.style.display = "none";
+            showNotify("昵称修改成功");
+        }
+        // 实时保存寄语
+        // 实时保存寄语+15字字数限制
+        document.getElementById("user-motto").oninput = (e) => {
+            const input = e.target;
+            const warnDom = document.getElementById("motto-warn-text");
+            // 限制最大15字符
+            if (input.value.length > 15) {
+                warnDom.style.display = "block";
+                // 自动截断多余文字
+                input.value = input.value.slice(0, 15);
+            } else {
+                warnDom.style.display = "none";
+                userInfo.motto = input.value;
+                saveUserInfo();
+            }
+        }
+
+        let taskList = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let currentView = "day"; // day/week/stat
+        let currentFilter = "all";
+        let editTaskId = null;
+        const today = new Date();
+        document.getElementById("today-date").innerText = today.toLocaleDateString("zh-CN", { weekday: "long", month: "long", day: "numeric" });
+
+        function saveStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(taskList));
+            renderAll();
+        }
+        function getNowTime() { return new Date().getTime(); }
+        function isTaskRunning(start, end) {
+            const now = getNowTime();
+            return now >= new Date(start).getTime() && now < new Date(end).getTime();
+        }
+        function isTaskOverdue(end) {
+            return getNowTime() > new Date(end).getTime();
+        }
+        function showNotify(text) {
+            const bar = document.getElementById("notify");
+            bar.innerText = text;
+            bar.classList.add("show");
+            setTimeout(() => bar.classList.remove("show"), 3000);
+        }
+        // 新增：校验日期是否有效
+        function isValidDate(d) {
+            return d instanceof Date && !isNaN(d.getTime());
+        }
+        function renderAll() {
+            renderTaskList();
+            renderStat();
+            renderOrbitPoints();
+        }
+        function renderTaskList() {
+            const wrap = document.getElementById("task-list");
+            wrap.innerHTML = "";
+            let filterTasks = taskList;
+            if (currentFilter !== "all") filterTasks = taskList.filter(t => t.type === currentFilter);
+
+            // 视图分支：今日
+            if (currentView === "day") {
+                document.querySelector(".day-title").innerText = "今日安排";
+                const todayStr = new Date().toISOString().slice(0, 10);
+                filterTasks = filterTasks.filter(item => item.start.slice(0, 10) === todayStr);
+            }
+            // 视图分支：本周总览
+            else if (currentView === "week") {
+                document.querySelector(".day-title").innerText = "本周全部日程";
+                // 获取本周时间范围
+                const now = new Date();
+                const day = now.getDay();
+                const weekStart = new Date(now.getTime() - day * 24 * 3600 * 1000);
+                const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 3600 * 1000);
+                filterTasks = filterTasks.filter(item => {
+                    const t = new Date(item.start);
+                    return t >= weekStart && t <= weekEnd;
+                });
+            }
+            // 视图分支：数据统计可视化
+            else if (currentView === "stat") {
+                document.querySelector(".day-title").innerText = "日程数据统计";
+                // 统计计算
+                const total = filterTasks.length;
+                const done = filterTasks.filter(t => t.done).length;
+                const work = filterTasks.filter(t => t.type === "work").length;
+                const study = filterTasks.filter(t => t.type === "study").length;
+                const life = filterTasks.filter(t => t.type === "life").length;
+                const high = filterTasks.filter(t => t.prio === "high").length;
+                wrap.innerHTML = `
+    <div style="padding:20px 0;line-height:1.8;font-size:15px;color:var(--text-primary)">
+      <div class="panel-card" style="margin-bottom:16px;padding:20px;">
+        <h4 style="margin-bottom:12px;font-size:17px">任务总量概况</h4>
+        <p>全部任务：${total} 条</p>
+        <p>已完成任务：${done} 条</p>
+        <p>完成率：${total > 0 ? Math.round(done / total * 100) : 0}%</p>
+      </div>
+      <div class="panel-card" style="margin-bottom:16px;padding:20px;">
+        <h4 style="margin-bottom:12px;font-size:17px">分类分布</h4>
+        <p>工作任务：${work} 条</p>
+        <p>学习任务：${study} 条</p>
+        <p>生活任务：${life} 条</p>
+      </div>
+      <div class="panel-card" style="padding:20px;">
+        <h4 style="margin-bottom:12px;font-size:17px">优先级分布</h4>
+        <p>高优先级任务：${high} 条</p>
+        <p>中优先级任务：${filterTasks.filter(t => t.prio === "mid").length} 条</p>
+        <p>低优先级任务：${filterTasks.filter(t => t.prio === "low").length} 条</p>
+      </div>
+    </div>
+    `;
+                return;
+            }
+
+            // 统一按时间排序
+            filterTasks.sort((a, b) => new Date(a.start) - new Date(b.start));
+            if (filterTasks.length === 0) {
+                wrap.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-secondary)">暂无日程，点击左侧新建任务</div>`;
+                return;
+            }
+            filterTasks.forEach(task => {
+                const card = document.createElement("div");
+                let prioClass = `task-prio-${task.prio}`;
+                if (!task.done && isTaskOverdue(task.end)) prioClass = "task-overdue";
+                let runClass = (!task.done && isTaskRunning(task.start, task.end)) ? "task-running" : "";
+                let doneClass = task.done ? "task-done" : "";
+                const sTime = new Date(task.start).toLocaleString("zh-CN");
+                const eTime = new Date(task.end).toLocaleString("zh-CN");
+                card.className = `task-card ${prioClass} ${runClass} ${doneClass}`;
+                card.dataset.id = task.id;
+                card.innerHTML = `
+      <div class="task-title">${task.title}</div>
+      <div class="task-meta">
+        <span>${sTime} ~ ${eTime}</span>
+        <span>${task.type === "work" ? "工作" : task.type === "study" ? "学习" : "生活"}</span>
+      </div>
+      ${task.desc ? `<div style="margin-top:6px;font-size:13px;color:var(--text-secondary)">${task.desc}</div>` : ""}
+      <div class="task-actions">
+        <button class="btn-done">${task.done ? "撤销完成" : "标记完成"}</button>
+        <button class="btn-edit">编辑</button>
+        <button class="btn-del">删除</button>
+      </div>
+    `;
+                card.querySelector(".btn-done").onclick = () => {
+                    task.done = !task.done;
+                    if (task.done) {
+                        userInfo.completeCount += 1;
+                        userInfo.lastTaskDate = Date.now();
+                        saveUserInfo();
+                    }
+                    saveStorage();
+                    if (task.done) showNotify("已完成一项任务，灵树结出新果实");
+                };
+                card.querySelector(".btn-edit").onclick = () => openEditModal(task.id);
+                card.querySelector(".btn-del").onclick = () => {
+                    taskList = taskList.filter(t => t.id !== task.id);
+                    saveStorage();
+                    showNotify("任务已删除");
+                };
+                wrap.appendChild(card);
+            })
+        }
+        function renderStat() {
+            const total = taskList.length;
+            const done = taskList.filter(t => t.done).length;
+            const running = taskList.filter(t => !t.done && isTaskRunning(t.start, t.end)).length;
+            const rate = total === 0 ? "0%" : Math.round(done / total * 100) + "%";
+            document.getElementById("stat-total").innerText = total;
+            document.getElementById("stat-done").innerText = done;
+            document.getElementById("stat-running").innerText = running;
+            document.getElementById("stat-rate").innerText = rate;
+        }
+        const modal = document.getElementById("task-modal");
+        const inputs = {
+            title: document.getElementById("task-title"),
+            type: document.getElementById("task-type"),
+            prio: document.getElementById("task-prio"),
+            start: document.getElementById("task-start"),
+            end: document.getElementById("task-end"),
+            desc: document.getElementById("task-desc")
+        }
+        function openModal() {
+            editTaskId = null;
+            modal.style.display = "flex";
+            const now = new Date();
+            const t1 = new Date(now.getTime() + 3600 * 1000);
+            const t2 = new Date(now.getTime() + 2 * 3600 * 1000);
+            inputs.start.value = t1.toISOString().slice(0, 16);
+            inputs.end.value = t2.toISOString().slice(0, 16);
+            inputs.title.value = "";
+            inputs.desc.value = "";
+            inputs.type.value = "work";
+            inputs.prio.value = "mid";
+        }
+        function openEditModal(id) {
+            editTaskId = id;
+            const task = taskList.find(t => t.id === id);
+            modal.style.display = "flex";
+            inputs.title.value = task.title;
+            inputs.type.value = task.type;
+            inputs.prio.value = task.prio;
+            inputs.start.value = task.start;
+            inputs.end.value = task.end;
+            inputs.desc.value = task.desc;
+        }
+        function closeModal() { modal.style.display = "none"; }
+        document.getElementById("open-modal").onclick = openModal;
+        document.getElementById("close-modal").onclick = closeModal;
+
+        // 修复后的保存校验逻辑
+        document.getElementById("save-task").onclick = () => {
+            const title = inputs.title.value.trim();
+            const startStr = inputs.start.value.trim();
+            const endStr = inputs.end.value.trim();
+            // 1. 非空校验
+            if (!title) return showNotify("请填写任务标题");
+            if (!startStr || !endStr) return showNotify("请完整选择开始与结束时间");
+            // 2. 转日期对象
+            const startTime = new Date(startStr);
+            const endTime = new Date(endStr);
+            // 3. 校验日期格式是否合法
+            if (!isValidDate(startTime) || !isValidDate(endTime)) {
+                return showNotify("选择的时间格式无效，请重新选择");
+            }
+            // 4. 核心：结束时间必须严格大于开始时间
+            if (endTime <= startTime) {
+                // 这里一定会弹出顶部通知
+                showNotify("错误：结束时间不能早于或等于开始时间，请重新调整时间");
+                return;
+            }
+            // 校验通过，保存
+            const data = {
+                id: editTaskId || Date.now().toString(),
+                title,
+                type: inputs.type.value,
+                prio: inputs.prio.value,
+                start: startStr,
+                end: endStr,
+                desc: inputs.desc.value.trim(),
+                done: false
+            }
+            if (editTaskId) {
+                const idx = taskList.findIndex(t => t.id === editTaskId);
+                taskList[idx] = data;
+            } else {
+                taskList.push(data);
+            }
+            closeModal();
+            saveStorage();
+            showNotify("日程保存成功");
+        }
+
+        document.getElementById("focus-btn").onclick = () => {
+            document.body.classList.toggle("focus-mode");
+            const isFocus = document.body.classList.contains("focus-mode");
+            if (isFocus) {
+                showNotify("已进入专注模式，右上角悬浮按钮可随时退出");
+            } else {
+                showNotify("已退出专注模式");
+            }
+        }
+        // 右上角悬浮退出按钮逻辑
+        document.getElementById("focus-exit").onclick = () => {
+            document.body.classList.remove("focus-mode");
+            showNotify("已退出专注模式");
+        }
+        document.getElementById("theme-switch").onclick = () => {
+            const d = document.body.dataset.theme;
+            document.body.dataset.theme = d === "dark" ? "" : "dark";
+        }
+        // 导出Excel
+        document.getElementById("export-data").onclick = () => {
+            const exportData = taskList.map(task => ({
+                "任务ID": task.id,
+                "任务标题": task.title,
+                "分类": task.type === "work" ? "工作" : task.type === "study" ? "学习" : "生活",
+                "优先级": task.prio === "high" ? "高" : task.prio === "mid" ? "中" : "低",
+                "开始时间": new Date(task.start).toLocaleString("zh-CN"),
+                "结束时间": new Date(task.end).toLocaleString("zh-CN"),
+                "备注": task.desc,
+                "完成状态": task.done ? "已完成" : "未完成"
+            }));
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            XLSX.utils.book_append_sheet(wb, ws, "日程数据");
+            const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+            const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "日程管理数据.xlsx";
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showNotify("Excel数据导出完成");
+        }
+        document.getElementById("clear-done").onclick = () => {
+            taskList = taskList.filter(t => !t.done);
+            saveStorage();
+            showNotify("已清空全部完成任务");
+        }
+        // 视图切换按钮
+        document.querySelectorAll("[data-view]").forEach(btn => {
+            btn.onclick = () => {
+                // 切换激活样式
+                document.querySelectorAll("[data-view]").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentView = btn.dataset.view;
+                renderAll();
+            }
+        })
+
+        function initBgThree() {
+            // 天气模拟简易逻辑（可对接真实天气API，当前内置模拟晴/阴/雨三态）
+            function getWeatherType() {
+                const hour = new Date().getHours();
+                // 简易模拟：12-18晴天、6-12阴天、18-22小雨氛围
+                if (hour >= 12 && hour <= 18) return "sunny";
+                if (hour >= 6 && hour <= 12) return "cloudy";
+                return "rain";
+            }
+            // 粒子材质根据天气变色
+            let particleMat;
+            function initBgThree() {
+                const canvas = document.getElementById("bg-canvas");
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                camera.position.z = 30;
+                const count = 600;
+                const geo = new THREE.BufferGeometry();
+                const pos = new Float32Array(count * 3);
+                const vel = new Float32Array(count * 3);
+                for (let i = 0; i < count; i++) {
+                    pos[i * 3] = (Math.random() - 0.5) * 60;
+                    pos[i * 3 + 1] = (Math.random() - 0.5) * 40;
+                    pos[i * 3 + 2] = (Math.random() - 0.5) * 20;
+                    vel[i * 3] = (Math.random() - 0.5) * 0.02;
+                    vel[i * 3 + 1] = (Math.random() - 0.5) * 0.02;
+                    vel[i * 3 + 2] = (Math.random() - 0.5) * 0.01;
+                }
+                geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+                // 天气联动粒子色彩
+                const weather = getWeatherType();
+                let particleColor;
+                if (weather === "sunny") particleColor = new THREE.Color("#73a2d8"); if (weather === "cloudy") particleColor = new THREE.Color("#b0b8c8");
+                if (weather === "rain") particleColor = new THREE.Color("#a0b4cc");
+                particleMat = new THREE.PointsMaterial({
+                    size: 0.18, transparent: true, opacity: 0.5, sizeAttenuation: true,
+                    color: particleColor
+                })
+                const points = new THREE.Points(geo, particleMat);
+                scene.add(points);
+                window.addEventListener("resize", () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                })
+                function animate() {
+                    requestAnimationFrame(animate);
+                    const pArr = geo.attributes.position.array;
+                    for (let i = 0; i < count; i++) {
+                        pArr[i * 3] += vel[i * 3];
+                        pArr[i * 3 + 1] += vel[i * 3 + 1];
+                        if (Math.abs(pArr[i * 3]) > 30) vel[i * 3] *= -1;
+                        if (Math.abs(pArr[i * 3 + 1]) > 20) vel[i * 3 + 1] *= -1;
+                    }
+                    geo.attributes.position.needsUpdate = true;
+                    points.rotation.y += 0.0008;
+                    renderer.render(scene, camera);
+                }
+                animate();
+            }
+
+        }
+        let orbitPoints = [];
+        function initOrbitThree() {
+            const canvas = document.getElementById("orbit-canvas");
+            const wrap = document.getElementById("orbit-canvas-wrap");
+            const w = wrap.clientWidth;
+            const h = wrap.clientHeight;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 100);
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(w, h);
+            camera.position.set(0, -0.15, 4.2); // Y轴轻微上移，抵消视觉下坠偏移
+            const ringGeo = new THREE.RingGeometry(1.3, 1.7, 64); const ringMat = new THREE.MeshBasicMaterial({ color: 0x73a2d8, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            scene.add(ring);
+            const pointGroup = new THREE.Group();
+            scene.add(pointGroup);
+            window.renderOrbitPoints = function () {
+                pointGroup.clear();
+                orbitPoints = [];
+                taskList.forEach(task => {
+                    const tStart = new Date(task.start).getHours();
+                    const rad = (tStart / 24) * Math.PI * 2;
+                    const r = 1.5;
+                    const x = Math.cos(rad) * r;
+                    const y = Math.sin(rad) * r;
+                    let color = 0x89c9a9;
+                    let size = 0.08;
+                    if (task.done) color = 0xb0c8e8;
+                    else if (isTaskRunning(task.start, task.end)) { color = 0x73a2d8; size = 0.14; }
+                    else if (isTaskOverdue(task.end)) color = 0xe8a8b8;
+                    const pGeo = new THREE.SphereGeometry(size, 8, 8);
+                    const pMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8 });
+                    const mesh = new THREE.Mesh(pGeo, pMat);
+                    mesh.position.set(x, y, 0.05);
+                    pointGroup.add(mesh);
+                    orbitPoints.push(mesh);
+                    ring.position.set(0, 0, 0);
+                    pointGroup.position.set(0, 0, 0);
+                })
+            }
+            window.addEventListener("resize", () => {
+                const nw = wrap.clientWidth;
+                const nh = wrap.clientHeight;
+                camera.aspect = nw / nh;
+                camera.updateProjectionMatrix();
+                renderer.setSize(nw, nh);
+            })
+            function animateOrbit() {
+                requestAnimationFrame(animateOrbit);
+                ring.rotation.z += 0.0015;
+                pointGroup.rotation.z += 0.0015;
+                renderer.render(scene, camera);
+            }
+            animateOrbit();
+            renderOrbitPoints();
+        }
+        // 底部许愿灵树
+        function initWishTree() {
+            const canvas = document.getElementById("tree-canvas");
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 50);
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            camera.position.set(0, 2, 8);
+            // 树干
+            const trunkGeo = new THREE.CylinderGeometry(0.12, 0.22, 3.5, 12);
+            const trunkMat = new THREE.MeshBasicMaterial({ color: 0x6b5848, transparent: true, opacity: 0.7 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = -1.8;
+            scene.add(trunk);
+            // 树枝组
+            const branchGroup = new THREE.Group();
+            scene.add(branchGroup);
+            // 果实池
+            const fruitPool = [];
+            // 检测闲置天数（枝叶枯黄判定）
+            const now = Date.now();
+            const idleDay = (now - userInfo.lastTaskDate) / (1000 * 60 * 60 * 24);
+            const isWither = idleDay > 7;
+            // 枝叶材质：青绿健康 / 枯黄衰败
+            let leafColor = isWither ? 0xb8a268 : 0x78b978;
+            // 生成枝叶
+            function createBranch(x, z, scale) {
+                const leafGeo = new THREE.SphereGeometry(0.8 * scale, 8, 8);
+                const leafMat = new THREE.MeshBasicMaterial({ color: leafColor, transparent: true, opacity: 0.6 });
+                const leaf = new THREE.Mesh(leafGeo, leafMat);
+                leaf.position.set(x, 0, z);
+                branchGroup.add(leaf);
+            }
+            createBranch(-1.4, -1, 1);
+            createBranch(1.2, -0.6, 0.85);
+            createBranch(-0.6, 1.2, 0.9);
+            createBranch(1.3, 0.9, 0.75);
+            // 生成对应数量发光果实
+            for (let i = 0; i < userInfo.completeCount; i++) {
+                const fruitGeo = new THREE.SphereGeometry(0.16, 10, 10);
+                const fruitMat = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color("#73a2d8"),
+                    transparent: true, opacity: 0.85,
+
+                    emissive: new THREE.Color("#73a2d8"),
+                    emissiveIntensity: 0.4
+                });
+                const fruit = new THREE.Mesh(fruitGeo, fruitMat);
+                // 随机挂在树枝位置
+                fruit.position.set(
+                    (Math.random() - 0.5) * 2.2,
+                    Math.random() * 1.6,
+                    (Math.random() - 0.5) * 1.6
+                );
+                fruit.userData.floatSpeed = 0.008 + Math.random() * 0.004;
+                fruitPool.push(fruit);
+                branchGroup.add(fruit);
+            }
+            // 闲置落叶粒子（枯萎状态）
+            let leafFallArr = [];
+            if (isWither) {
+                for (let i = 0; i < 25; i++) {
+                    const fallGeo = new THREE.CircleGeometry(0.12, 6);
+                    const fallMat = new THREE.MeshBasicMaterial({ color: 0xd4b878, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
+                    const fallLeaf = new THREE.Mesh(fallGeo, fallMat);
+                    fallLeaf.position.set((Math.random() - 0.5) * 4, 3, (Math.random() - 0.5) * 3);
+                    fallLeaf.userData.speedY = 0.012 + Math.random() * 0.008;
+                    leafFallArr.push(fallLeaf);
+                    scene.add(fallLeaf);
+                }
+            }
+            // 窗口适配
+            window.addEventListener("resize", () => {
+                const w = canvas.clientWidth;
+                const h = canvas.clientHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            })
+            // 动画循环
+            function treeAnimate() {
+                requestAnimationFrame(treeAnimate);
+                branchGroup.rotation.y += 0.0006;
+                // 果实上下浮动发光
+                fruitPool.forEach(fruit => {
+                    fruit.position.y += Math.sin(Date.now() * 0.001 * fruit.userData.floatSpeed) * 0.004;
+                    fruit.material.emissiveIntensity = 0.3 + Math.sin(Date.now() * 0.0015) * 0.15;
+                })
+                // 枯叶下落循环
+                leafFallArr.forEach(leaf => {
+                    leaf.position.y -= leaf.userData.speedY;
+                    leaf.rotation.z += 0.012;
+                    if (leaf.position.y < -3) {
+                        leaf.position.y = 3;
+                        leaf.position.x = (Math.random() - 0.5) * 4;
+                        leaf.position.z = (Math.random() - 0.5) * 3;
+                    }
+                })
+                renderer.render(scene, camera);
+            }
+            treeAnimate();
+        }
+        // 页面加载时初始化灵树，追加进window.onload
+        window.onload = () => {
+            initBgThree();
+            initOrbitThree();
+            initWishTree(); // 新增灵树初始化
+            renderAll();
+            // 初始化专注按钮文字
+            if (document.body.classList.contains("focus-mode")) {
+                document.getElementById("focus-btn").innerText = "退出专注模式";
+                document.getElementById("focus-btn").style.background = "var(--glow-strong)";
+                document.getElementById("focus-btn").style.color = "#fff";
+            }
+            setInterval(() => renderAll(), 60000);
+        }
+        window.onload = () => {
+            initBgThree();
+            initOrbitThree();
+            renderAll();
+            setInterval(() => renderAll(), 60000);
+            if (document.body.classList.contains("focus-mode")) {
+                document.getElementById("focus-btn").innerText = "退出专注模式";
+                document.getElementById("focus-btn").style.background = "var(--glow-strong)";
+                document.getElementById("focus-btn").style.color = "#fff";
+            }
+        }
+    </script>
+
+</body>
+
+</html>

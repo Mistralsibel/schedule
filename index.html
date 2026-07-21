@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>四时花韵｜花卉古诗文3D展厅</title>
+<script type="importmap" crossorigin="anonymous">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://esm.sh/three@0.164.1/examples/jsm/"
+  }
+}
+</script>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "思源宋体", "Noto Serif SC", SimSun, serif;
+}
+body {
+  overflow: hidden;
+  background: #f8f6f0;
+  height: 100vh;
+  color: #2c2c2c;
+}
+#canvas-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 右侧季节导航栏 */
+.season-nav {
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.season-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 1px solid rgba(130, 110, 90, 0.35);
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(6px);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.season-btn:hover {
+  background: rgba(255,255,255,0.9);
+  transform: scale(1.08);
+}
+.season-btn.active {
+  background: rgba(220, 200, 175, 0.8);
+  border-color: #967c5c;
+}
+
+/* 古风卷轴容器 */
+.scroll-container {
+  position: fixed;
+  left: 50%;
+  top: 52%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 72vh;
+  background: linear-gradient(90deg, #e9e2d5 0%, #f5efe4 50%, #e9e2d5 100%);
+  border-left: 12px solid #a88e6f;
+  border-right: 12px solid #a88e6f;
+  border-radius: 4px;
+  z-index: 8;
+  overflow: hidden;
+  transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.scroll-container.open {
+  width: min(82vw, 1100px);
+  pointer-events: all;
+}
+.scroll-inner {
+  width: 100%;
+  height: 100%;
+  padding: 40px 60px;
+  overflow-y: auto;
+  opacity: 0;
+  transition: opacity 0.8s ease 0.6s;
+}
+.scroll-container.open .scroll-inner {
+  opacity: 1;
+}
+.scroll-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-size: 22px;
+  cursor: pointer;
+  color: #665544;
+}
+
+/* 卷轴花卉诗文卡片 */
+.flower-card {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 48px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid rgba(140, 120, 100, 0.2);
+}
+.flower-img-box {
+  width: 220px;
+  height: 220px;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(130, 110, 90, 0.3);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #777;
+}
+.poetry-block h3 {
+  font-size: 22px;
+  margin-bottom: 12px;
+  color: #44382c;
+}
+.poetry-block p {
+  font-size: 16px;
+  line-height: 2;
+  color: #333;
+  white-space: pre-line;
+}
+
+/* 顶部标题 */
+.title-mark {
+  position: fixed;
+  top: 32px;
+  left: 32px;
+  z-index: 10;
+  font-size: 28px;
+  color: #504234;
+  letter-spacing: 6px;
+  opacity: 0.85;
+}
+/* 加载遮罩 */
+.load-mask {
+  position: fixed;
+  inset: 0;
+  background: #f8f6f0;
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #665544;
+  transition: opacity 1s ease;
+}
+.load-mask.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+/* 错误提示 */
+.error-tip {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(180,40,40,0.9);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  z-index: 100;
+  display: none;
+}
+</style>
+</head>
+<body>
+<div class="load-mask" id="loadMask">四时花韵 · 加载中</div>
+<div class="error-tip" id="errorTip"></div>
+<div class="title-mark">四 時 花 韻</div>
+
+<!-- 3D画布容器 -->
+<div id="canvas-wrap"></div>
+
+<!-- 右侧季节导航 -->
+<div class="season-nav">
+  <button class="season-btn" data-season="spring">春</button>
+  <button class="season-btn" data-season="summer">夏</button>
+  <button class="season-btn" data-season="autumn">秋</button>
+  <button class="season-btn" data-season="winter">冬</button>
+</div>
+
+<!-- 古风卷轴弹窗 -->
+<div class="scroll-container" id="scrollBox">
+  <span class="scroll-close" id="scrollClose">×</span>
+  <div class="scroll-inner" id="scrollContent"></div>
+</div>
+
+<script type="module" crossorigin="anonymous">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// DOM元素
+const loadMask = document.getElementById("loadMask");
+const errorTip = document.getElementById("errorTip");
+const canvasWrap = document.getElementById("canvas-wrap");
+const scrollBox = document.getElementById("scrollBox");
+const scrollContent = document.getElementById("scrollContent");
+const scrollClose = document.getElementById("scrollClose");
+const seasonBtns = document.querySelectorAll(".season-btn");
+
+// 四季花卉诗文素材库
+const seasonData = {
+  spring: {
+    tint: new THREE.Color("#fce4e8"),
+    flowers: [
+      { name: "牡丹", img: "牡丹水墨图", poem: "《牡丹》\n唐·皮日休\n落尽残红始吐芳，佳名唤作百花王。\n竞夸天下无双艳，独立人间第一香。" },
+      { name: "海棠", img: "垂丝海棠", poem: "《海棠》\n宋·苏轼\n东风袅袅泛崇光，香雾空蒙月转廊。\n只恐夜深花睡去，故烧高烛照红妆。" },
+      { name: "迎春", img: "迎春花", poem: "《迎春花》\n宋·刘敞\n秾李繁桃刮眼明，东风先入九重城。\n黄花翠蔓无人愿，浪得迎春世上名。" },
+      { name: "玉兰", img: "白玉兰", poem: "《玉兰》\n明·文徵明\n绰约新妆玉有辉，素娥千队雪成围。\n我知姑射真仙子，天遣霓裳试羽衣。" }
+    ]
+  },
+  summer: {
+    tint: new THREE.Color("#e4f3f0"),
+    flowers: [
+      { name: "荷花", img: "水墨荷花", poem: "《爱莲说》节选\n宋·周敦颐\n出淤泥而不染，濯清涟而不妖，\n中通外直，不蔓不枝，香远益清。" },
+      { name: "茉莉", img: "茉莉盆栽", poem: "《茉莉花》\n清·王士禄\n冰雪为容玉作胎，柔情合傍琐窗隈。\n香从清梦回时觉，花向美人头上开。" },
+      { name: "月季", img: "粉月季", poem: "《月季》\n宋·苏轼\n花落花开无间断，春来春去不相关。\n牡丹最贵惟春晚，芍药虽繁只夏初。\n唯有此花开不厌，一年长占四时春。" },
+      { name: "紫薇", img: "紫薇花", poem: "《紫薇花》\n唐·杜牧\n晓迎秋露一枝新，不占园中最上春。\n桃李无言又何在，向风偏笑艳阳人。" }
+    ]
+  },
+  autumn: {
+    tint: new THREE.Color("#f9ede0"),
+    flowers: [
+      { name: "桂花", img: "金桂满枝", poem: "《桂花》\n宋·杨万里\n不是人间种，移从月中来。\n广寒香一点，吹得满山开。" },
+      { name: "木槿", img: "木槿花", poem: "《木槿花》\n金·王寂\n梦魂不到武陵源，且向篱边看木槿。\n晓开暮落寻常事，不与春花竞浅深。" },
+      { name: "菊花", img: "秋菊", poem: "《饮酒·其五》\n晋·陶渊明\n采菊东篱下，悠然见南山。\n山气日夕佳，飞鸟相与还。" }
+    ]
+  },
+  winter: {
+    tint: new THREE.Color("#eef2f8"),
+    flowers: [
+      { name: "梅花", img: "寒梅傲雪", poem: "《梅花》\n宋·王安石\n墙角数枝梅，凌寒独自开。\n遥知不是雪，为有暗香来。" },
+      { name: "山茶", img: "红山茶花", poem: "《山茶》\n明·沈周\n老叶经寒厚，繁花傲雪妍。\n独存岁寒色，不借早春妍。" },
+      { name: "水仙", img: "凌波水仙", poem: "《水仙花》\n宋·黄庭坚\n凌波仙子生尘袜，水上轻盈步微月。\n是谁招此断肠魂，种作寒花寄愁绝。" }
+    ]
+  }
+};
+
+// 全局变量
+let scene, camera, renderer, controls;
+let flowerGroup;
+let clock = new THREE.Clock();
+let currentSeason = null;
+let scrollOpen = false;
+
+// 捕获JS全局错误
+window.addEventListener('error', (e) => {
+  console.error(e);
+  errorTip.innerText = `加载失败：${e.message}，请使用Live Server打开页面`;
+  errorTip.style.display = 'block';
+});
+
+// 初始化3D场景
+function initThree() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color("#f8f6f0");
+  scene.fog = new THREE.FogExp2("#f8f6f0", 0.0008);
+
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+  camera.position.set(0, 14, 40);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  canvasWrap.appendChild(renderer.domElement);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.minDistance = 22;
+  controls.maxDistance = 90;
+  controls.maxPolarAngle = Math.PI / 2.1;
+
+  const ambientLight = new THREE.AmbientLight(0xfff9ef, 0.75);
+  scene.add(ambientLight);
+  const dirLight = new THREE.DirectionalLight(0xfff7e8, 0.4);
+  dirLight.position.set(20, 30, 20);
+  scene.add(dirLight);
+
+  createFlowerRing();
+  window.addEventListener("resize", onWindowResize);
+}
+
+// 生成单朵花卉
+function createFlowerMesh(baseSize, offsetHue) {
+  const group = new THREE.Group();
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    const petalGeo = new THREE.CircleGeometry(baseSize, 12);
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color().setHSL(0.08 + offsetHue, 0.45, 0.92),
+      roughness: 0.72,
+      metalness: 0
+    });
+    const petal = new THREE.Mesh(petalGeo, mat);
+    petal.rotation.z = angle;
+    petal.position.set(Math.cos(angle) * baseSize * 0.35, Math.sin(angle) * baseSize * 0.35, 0);
+    group.add(petal);
+  }
+  const coreGeo = new THREE.SphereGeometry(baseSize * 0.22, 8, 8);
+  const coreMat = new THREE.MeshStandardMaterial({ color: 0xe6c870 });
+  const core = new THREE.Mesh(coreGeo, coreMat);
+  group.add(core);
+  return group;
+}
+
+// 分层环形花卉
+function createFlowerRing() {
+  flowerGroup = new THREE.Group();
+  const layers = [
+    { radius: 6, count: 12, size: 0.32, hue: 0.02 },
+    { radius: 12, count: 18, size: 0.55, hue: 0.06 },
+    { radius: 19, count: 24, size: 0.8, hue: 0.11 },
+  ];
+  layers.forEach(layer => {
+    for (let i = 0; i < layer.count; i++) {
+      const angle = (i / layer.count) * Math.PI * 2;
+      const flower = createFlowerMesh(layer.size, layer.hue);
+      const r = layer.radius;
+      flower.position.set(
+        Math.cos(angle) * r,
+        (Math.sin(i * 0.4) * 0.6),
+        Math.sin(angle) * r
+      );
+      flower.userData.baseY = flower.position.y;
+      flowerGroup.add(flower);
+    }
+  });
+  scene.add(flowerGroup);
+}
+
+// 窗口缩放
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// 切换季节色调
+function setSeasonTint(seasonKey, clickBtn) {
+  const data = seasonData[seasonKey];
+  scene.background = data.tint.clone();
+  scene.fog.color = data.tint.clone();
+  currentSeason = seasonKey;
+  seasonBtns.forEach(btn => btn.classList.remove("active"));
+  clickBtn.classList.add("active");
+}
+
+// 打开/切换卷轴【核心修复函数】
+function openScroll(seasonKey, clickBtn) {
+  // 无论卷轴是否打开，都先重置，允许跨季节切换
+  scrollOpen = false;
+  scrollBox.classList.remove("open");
+
+  // 短暂延时，等卷轴收起动画完成再展开新季节
+  setTimeout(() => {
+    scrollOpen = true;
+    setSeasonTint(seasonKey, clickBtn);
+    scrollBox.classList.add("open");
+    const data = seasonData[seasonKey];
+    scrollContent.innerHTML = "";
+    data.flowers.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "flower-card";
+      card.innerHTML = `
+        <div class="flower-img-box">${item.img}</div>
+        <div class="poetry-block">
+          <h3>${item.name}</h3>
+          <p>${item.poem}</p>
+        </div>
+      `;
+      scrollContent.appendChild(card);
+    });
+  }, 600);
+}
+
+// 关闭卷轴
+function closeScroll() {
+  scrollOpen = false;
+  scrollBox.classList.remove("open");
+}
+
+// 绑定UI交互
+function bindUI() {
+  seasonBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const s = btn.dataset.season;
+      console.log("点击季节：", s);
+      openScroll(s, btn);
+    });
+  });
+  scrollClose.addEventListener("click", closeScroll);
+}
+
+// 动画循环
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  flowerGroup.children.forEach((flower, idx) => {
+    const baseY = flower.userData.baseY;
+    flower.position.y = baseY + Math.sin(t * 0.7 + idx * 0.3) * 0.45;
+    flower.rotation.y += 0.0025;
+  });
+  flowerGroup.rotation.y += 0.0008;
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// 启动项目
+async function start() {
+  try {
+    initThree();
+    bindUI();
+    animate();
+    setTimeout(() => loadMask.classList.add("hide"), 600);
+  } catch (err) {
+    console.error("初始化失败：", err);
+    errorTip.innerText = `3D场景初始化失败：${err.message}`;
+    errorTip.style.display = 'block';
+  }
+}
+start();
+</script>
+</body>
+</html>
