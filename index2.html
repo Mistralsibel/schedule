@@ -1245,7 +1245,6 @@
             z-index: 10;
             pointer-events: none;
             user-select: none;
-            transition: opacity var(--duration-slow) var(--ease-spring);
         }
 
         .brand-logo img {
@@ -1253,23 +1252,21 @@
             height: 36px;
             width: auto;
             opacity: 0.55;
-            transition: opacity var(--duration-normal) var(--ease-spring);
+            /* 白天明媚：自然通透 */
+            filter: brightness(1.05) saturate(1.1);
+            transition:
+                opacity var(--duration-normal) var(--ease-spring),
+                filter var(--duration-slow) var(--ease-spring);
+        }
+
+        [data-theme="dark"] .brand-logo img {
+            /* 夜晚神秘深奥：降亮度 + 蓝紫冷调 + 微辉光 */
+            filter: brightness(0.72) saturate(0.7) hue-rotate(25deg) drop-shadow(0 0 6px rgba(139, 175, 214, 0.30));
+            opacity: 0.62;
         }
 
         .brand-logo img:hover {
-            opacity: 0.85;
-        }
-
-        .logo-dark {
-            display: none;
-        }
-
-        [data-theme="dark"] .logo-light {
-            display: none;
-        }
-
-        [data-theme="dark"] .logo-dark {
-            display: block;
+            opacity: 0.90;
         }
 
         /* ---------- REDUCED MOTION ---------- */
@@ -1373,8 +1370,7 @@
 
 <!-- ====== 品牌标识 (右下角) ====== -->
 <div class="brand-logo">
-    <img class="logo-light" src="https://sybel.oss-cn-hangzhou.aliyuncs.com/logo-daytime.png" alt="Chrono">
-    <img class="logo-dark" src="https://sybel.oss-cn-hangzhou.aliyuncs.com/logo-night.png" alt="Chrono">
+    <img src="https://sybel.oss-cn-hangzhou.aliyuncs.com/logo.png" alt="Chrono">
 </div>
 
 <!-- ====== 修改用户名弹窗 ====== -->
