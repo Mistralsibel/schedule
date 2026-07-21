@@ -229,16 +229,16 @@
             pointer-events: none;
         }
 
-        /* ---------- LAYOUT: 三栏网格 ---------- */
+        /* ---------- LAYOUT: 三栏网格(自适应) ---------- */
         .app-wrap {
             position: relative;
             z-index: 2;
             width: 100%;
             height: 100vh;
             display: grid;
-            grid-template-columns: 280px 1fr 270px;
-            padding: 26px;
-            gap: 22px;
+            grid-template-columns: minmax(240px, 300px) 1fr minmax(220px, 280px);
+            padding: clamp(16px, 2vw, 26px);
+            gap: clamp(12px, 1.5vw, 22px);
         }
 
         .sidebar-left {
@@ -260,7 +260,7 @@
             -webkit-backdrop-filter: var(--glass-blur);
             border-radius: var(--radius-lg);
             border: 1px solid var(--glass-border);
-            padding: 20px;
+            padding: clamp(14px, 1.6vw, 20px);
             box-shadow: var(--shadow-card), var(--glass-inner-highlight);
             transition:
                 background var(--duration-normal) var(--ease-spring),
@@ -509,7 +509,7 @@
         }
 
         .day-title {
-            font-size: 26px;
+            font-size: clamp(20px, 2.2vw, 26px);
             font-weight: 350;
             letter-spacing: 0.03em;
             color: var(--text-primary);
@@ -758,7 +758,7 @@
         /* ---------- ORBIT PANEL ---------- */
         #orbit-canvas-wrap {
             width: 100%;
-            height: 270px;
+            height: clamp(200px, 20vw, 270px);
             position: relative;
             overflow: hidden;
             display: flex;
@@ -800,7 +800,7 @@
         }
 
         .modal-box {
-            width: 460px;
+            width: clamp(340px, 38vw, 460px);
             max-width: 92vw;
             background: var(--bg-modal);
             backdrop-filter: blur(22px);
@@ -1006,7 +1006,7 @@
         }
 
         body.focus-mode .main-content {
-            max-width: 620px;
+            max-width: clamp(400px, 52vw, 620px);
             margin: 0 auto;
             transition: max-width 0.55s var(--ease-spring);
         }
@@ -1073,7 +1073,7 @@
             left: 0;
             bottom: 0;
             width: 100%;
-            height: 300px;
+            height: clamp(200px, 25vw, 300px);
             z-index: 1;
             pointer-events: none;
             overflow: hidden;
@@ -1085,7 +1085,7 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 50px;
+            height: clamp(32px, 5vw, 50px);
             background: linear-gradient(to bottom, var(--bg-overlay), transparent);
             z-index: 2;
             pointer-events: none;
@@ -1240,7 +1240,7 @@
         /* ---------- BRAND LOGO ---------- */
         .brand-logo {
             position: fixed;
-            bottom: 22px;
+            bottom: 16px;
             right: 24px;
             z-index: 10;
             pointer-events: none;
@@ -1249,7 +1249,7 @@
 
         .brand-logo img {
             display: block;
-            height: 52px;
+            height: clamp(52px, 9vw, 112px);
             width: auto;
             opacity: 0.55;
             /* 白天明媚：自然通透 */
@@ -1267,6 +1267,151 @@
 
         .brand-logo img:hover {
             opacity: 0.90;
+        }
+
+        /* ---------- RESPONSIVE BREAKPOINTS ---------- */
+
+        /* ≤1280px: 收窄侧栏，缩减间距 */
+        @media (max-width: 1280px) {
+            .app-wrap {
+                grid-template-columns: minmax(200px, 240px) 1fr minmax(180px, 220px);
+                padding: clamp(12px, 1.8vw, 20px);
+                gap: clamp(10px, 1.2vw, 16px);
+            }
+            .panel-card {
+                padding: clamp(12px, 1.5vw, 18px);
+            }
+            .func-btn {
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+            .name-edit-wrap h1 {
+                font-size: clamp(17px, 1.8vw, 20px);
+                max-width: 130px;
+            }
+            .day-title {
+                font-size: clamp(18px, 2.2vw, 22px);
+            }
+            .theme-text {
+                display: none;
+            }
+            .theme-toggle-btn {
+                padding: 6px 8px;
+            }
+            .task-title {
+                font-size: 14px;
+            }
+            .task-meta {
+                font-size: 12px;
+            }
+            .focus-exit-btn {
+                top: 20px;
+                right: 20px;
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+        }
+
+        /* ≤960px: 三栏堆叠为单栏 + 底部保留灵树 */
+        @media (max-width: 960px) {
+            .app-wrap {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+                padding: 12px;
+                gap: 10px;
+                height: 100vh;
+                overflow-y: auto;
+            }
+            .sidebar-left {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .sidebar-left .panel-card:first-child {
+                grid-column: 1 / -1;
+            }
+            .sidebar-left .panel-card {
+                padding: 14px;
+            }
+            .sidebar-right {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .main-content {
+                order: 0;
+            }
+            .sidebar-left {
+                order: -1;
+            }
+            .sidebar-right {
+                order: 1;
+            }
+            #orbit-canvas-wrap {
+                height: 180px;
+            }
+            .wish-tree-wrap {
+                height: 180px;
+            }
+            .modal-box {
+                width: 92vw;
+                padding: 20px;
+            }
+            .brand-logo img {
+                height: clamp(32px, 7vw, 56px);
+            }
+            .brand-logo {
+                bottom: 12px;
+                right: 12px;
+            }
+            .control-group button {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            .name-edit-wrap h1 {
+                font-size: 18px;
+                max-width: 160px;
+            }
+            .focus-exit-btn {
+                top: 12px;
+                right: 12px;
+                padding: 8px 14px;
+            }
+            .day-title {
+                font-size: 20px;
+            }
+            .notify-bar {
+                padding: 10px 18px;
+                font-size: 13px;
+            }
+        }
+
+        /* ≤600px: 侧栏内部也堆叠 */
+        @media (max-width: 600px) {
+            .sidebar-left {
+                grid-template-columns: 1fr;
+            }
+            .sidebar-right {
+                grid-template-columns: 1fr;
+            }
+            .app-wrap {
+                padding: 8px;
+                gap: 8px;
+            }
+            .main-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .modal-box {
+                padding: 16px;
+                border-radius: var(--radius-lg);
+            }
+            .tree-tip {
+                font-size: 11px;
+                padding: 4px 12px;
+                bottom: 10px;
+            }
         }
 
         /* ---------- REDUCED MOTION ---------- */
