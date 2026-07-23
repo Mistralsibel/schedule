@@ -1787,13 +1787,12 @@
                 const wasDone = task.done;
                 task.done = !task.done;
                 if (task.done && !wasDone) {
-                    userInfo.completeCount += 1;
-                    userInfo.lastTaskDate = Date.now();
-                    saveUserInfo();
                     card.classList.add("task-complete-flash");
                     setTimeout(() => card.classList.remove("task-complete-flash"), 650);
                 }
                 saveStorage();
+                // 完成/撤销都刷新灵树（果实与今日完成任务同步）
+                if (typeof window.refreshWishTree === "function") window.refreshWishTree();
                 if (task.done && !wasDone) showNotify("已完成一项任务，灵树结出新果实 ✨");
             };
             card.querySelector(".btn-edit").onclick = () => openEditModal(task.id);
@@ -1803,6 +1802,7 @@
                 setTimeout(() => {
                     taskList = taskList.filter(t => t.id !== task.id);
                     saveStorage();
+                    if (typeof window.refreshWishTree === "function") window.refreshWishTree();
                     showNotify("任务已删除");
                 }, 220);
             };
@@ -1897,6 +1897,7 @@
         }
         closeModal();
         saveStorage();
+        if (typeof window.refreshWishTree === "function") window.refreshWishTree();
         showNotify("日程保存成功 ✓");
     };
 
@@ -1967,6 +1968,7 @@
         if (doneCount === 0) return showNotify("没有已完成的任务");
         taskList = taskList.filter(t => !t.done);
         saveStorage();
+        if (typeof window.refreshWishTree === "function") window.refreshWishTree();
         showNotify(`已清空 ${doneCount} 项已完成任务`);
     };
 
@@ -2138,8 +2140,27 @@
     }
 
     // ================================================================
-    // THREE.JS — 底部许愿灵树
+    // THREE.JS — 底部许愿灵树 (今日任务完成情况实时同步)
     // ================================================================
+    // 果实颜色映射（按任务类型）
+    const FRUIT_COLORS = {
+        work: 0x6D94C0,   // 晨雾蓝
+        study: 0x6DB87D,  // 鼠尾草绿
+        life: 0xC4A44A,   // 暖金色
+    };
+    const FRUIT_COLORS_VARIANT = {
+        work: [0x6D94C0, 0x8BAFD6, 0xA0C4E8, 0x5A8AB5, 0x7DAAD4],
+        study: [0x6DB87D, 0x8CC99A, 0xA0D8AA, 0x5AA06A, 0x7DC890],
+        life: [0xC4A44A, 0xD4B860, 0xE0C878, 0xB09038, 0xCCB050],
+    };
+
+    function getTodayCompletedTasks() {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        return taskList.filter(t => t.done && t.start.slice(0, 10) === todayStr);
+    }
+
+    const wishTreeState = { fruitPool: [], leafFallArr: [], branchGroup: null, scene: null, renderer: null, camera: null };
+
     function initWishTree() {
         const canvas = document.getElementById("tree-canvas");
         const scene = new THREE.Scene();
@@ -2150,89 +2171,42 @@
         renderer.setClearColor(0x000000, 0);
         camera.position.set(0, 2, 8);
 
-        // 树干 — depthWrite: true 确保稳定遮挡
+        wishTreeState.scene = scene;
+        wishTreeState.renderer = renderer;
+        wishTreeState.camera = camera;
+        wishTreeState.canvas = canvas;
+
+        // 树干
         const trunkGeo = new THREE.CylinderGeometry(0.12, 0.22, 3.5, 12);
         const trunkMat = new THREE.MeshBasicMaterial({
-            color: 0x6B5848,
-            transparent: true,
-            opacity: 0.78,
-            depthWrite: true,
+            color: 0x6B5848, transparent: true, opacity: 0.78, depthWrite: true,
         });
         const trunk = new THREE.Mesh(trunkGeo, trunkMat);
         trunk.position.y = -1.8;
         trunk.renderOrder = 0;
         scene.add(trunk);
 
+        // 树枝组
         const branchGroup = new THREE.Group();
         branchGroup.renderOrder = 1;
         scene.add(branchGroup);
+        wishTreeState.branchGroup = branchGroup;
 
-        const fruitPool = [];
-
-        const now = Date.now();
-        const idleDay = (now - userInfo.lastTaskDate) / (1000 * 60 * 60 * 24);
-        const isWither = idleDay > 7;
-
-        const leafColor = isWither ? 0xB8A268 : 0x78B978;
-
-        function createBranch(x, z, scale) {
+        // 创建四个枝叶球
+        const branchDefs = [[-1.4, -1, 1], [1.2, -0.6, 0.85], [-0.6, 1.2, 0.9], [1.3, 0.9, 0.75]];
+        branchDefs.forEach(([x, z, scale]) => {
             const leafGeo = new THREE.SphereGeometry(0.8 * scale, 8, 8);
             const leafMat = new THREE.MeshBasicMaterial({
-                color: leafColor,
-                transparent: true,
-                opacity: 0.75,
-                depthWrite: true,
+                color: 0x78B978, transparent: true, opacity: 0.75, depthWrite: true,
             });
             const leaf = new THREE.Mesh(leafGeo, leafMat);
             leaf.position.set(x, 0, z);
             leaf.renderOrder = 1;
             branchGroup.add(leaf);
-        }
-        createBranch(-1.4, -1, 1);
-        createBranch(1.2, -0.6, 0.85);
-        createBranch(-0.6, 1.2, 0.9);
-        createBranch(1.3, 0.9, 0.75);
+        });
 
-        for (let i = 0; i < userInfo.completeCount; i++) {
-            const fruitGeo = new THREE.SphereGeometry(0.16, 10, 10);
-            const fruitMat = new THREE.MeshBasicMaterial({
-                color: new THREE.Color("#6D94C0"),
-                transparent: true,
-                opacity: 0.85,
-                depthWrite: false,
-            });
-            const fruit = new THREE.Mesh(fruitGeo, fruitMat);
-            fruit.position.set(
-                (Math.random() - 0.5) * 2.2,
-                Math.random() * 1.6,
-                (Math.random() - 0.5) * 1.6
-            );
-            fruit.userData.floatSpeed = 0.008 + Math.random() * 0.004;
-            fruit.userData.baseOpacity = 0.75 + Math.random() * 0.15;
-            fruit.renderOrder = 2;
-            fruitPool.push(fruit);
-            branchGroup.add(fruit);
-        }
-
-        let leafFallArr = [];
-        if (isWither) {
-            for (let i = 0; i < 25; i++) {
-                const fallGeo = new THREE.CircleGeometry(0.12, 6);
-                const fallMat = new THREE.MeshBasicMaterial({
-                    color: 0xD4B878,
-                    transparent: true,
-                    opacity: 0.7,
-                    side: THREE.DoubleSide,
-                    depthWrite: false,
-                });
-                const fallLeaf = new THREE.Mesh(fallGeo, fallMat);
-                fallLeaf.position.set((Math.random() - 0.5) * 4, 3, (Math.random() - 0.5) * 3);
-                fallLeaf.userData.speedY = 0.012 + Math.random() * 0.008;
-                fallLeaf.renderOrder = 3;
-                leafFallArr.push(fallLeaf);
-                scene.add(fallLeaf);
-            }
-        }
+        // 根据今日完成情况初始化果实
+        rebuildFruits();
 
         window.addEventListener("resize", () => {
             const w = canvas.clientWidth;
@@ -2246,13 +2220,12 @@
         function treeAnimate() {
             requestAnimationFrame(treeAnimate);
             branchGroup.rotation.y += 0.0006;
-            fruitPool.forEach(fruit => {
+            wishTreeState.fruitPool.forEach(fruit => {
                 fruit.position.y += Math.sin(Date.now() * 0.001 * fruit.userData.floatSpeed) * 0.004;
-                // 用 opacity 呼吸替代无效的 emissiveIntensity 动画
                 const pulse = 0.35 + Math.sin(Date.now() * 0.0018 + fruit.userData.floatSpeed * 10) * 0.15;
                 fruit.material.opacity = fruit.userData.baseOpacity * (0.88 + pulse * 0.12);
             });
-            leafFallArr.forEach(leaf => {
+            wishTreeState.leafFallArr.forEach(leaf => {
                 leaf.position.y -= leaf.userData.speedY;
                 leaf.rotation.z += 0.012;
                 if (leaf.position.y < -3) {
@@ -2265,6 +2238,80 @@
         }
         treeAnimate();
     }
+
+    // 重建果实：根据今日已完成任务实时刷新
+    function rebuildFruits() {
+        const { branchGroup, fruitPool, leafFallArr, scene } = wishTreeState;
+        if (!branchGroup) return;
+
+        // 清除旧果实
+        while (fruitPool.length > 0) {
+            const f = fruitPool.pop();
+            branchGroup.remove(f);
+            if (f.material) f.material.dispose();
+            if (f.geometry) f.geometry.dispose();
+        }
+        // 清除旧落叶
+        while (leafFallArr.length > 0) {
+            const lf = leafFallArr.pop();
+            if (scene) scene.remove(lf);
+            if (lf.material) lf.material.dispose();
+            if (lf.geometry) lf.geometry.dispose();
+        }
+
+        const todayDone = getTodayCompletedTasks();
+        const isWither = todayDone.length === 0;
+
+        // 更新枝叶颜色
+        branchGroup.children.forEach(child => {
+            if (child.renderOrder === 1) {
+                child.material.color.set(isWither ? 0xB8A268 : 0x78B978);
+            }
+        });
+
+        // 今日无完成 → 枯枝败叶，飘落枯叶
+        if (isWither) {
+            for (let i = 0; i < 25; i++) {
+                const fallGeo = new THREE.CircleGeometry(0.12, 6);
+                const fallMat = new THREE.MeshBasicMaterial({
+                    color: 0xD4B878, transparent: true, opacity: 0.7,
+                    side: THREE.DoubleSide, depthWrite: false,
+                });
+                const fallLeaf = new THREE.Mesh(fallGeo, fallMat);
+                fallLeaf.position.set((Math.random() - 0.5) * 4, 3, (Math.random() - 0.5) * 3);
+                fallLeaf.userData.speedY = 0.012 + Math.random() * 0.008;
+                fallLeaf.renderOrder = 3;
+                leafFallArr.push(fallLeaf);
+                if (scene) scene.add(fallLeaf);
+            }
+            return;
+        }
+
+        // 有完成任务 → 按类型生成果实，颜色各异
+        todayDone.forEach((task) => {
+            const variants = FRUIT_COLORS_VARIANT[task.type] || FRUIT_COLORS_VARIANT.work;
+            const colorHex = variants[Math.floor(Math.random() * variants.length)];
+            const fruitGeo = new THREE.SphereGeometry(0.16, 10, 10);
+            const fruitMat = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(colorHex),
+                transparent: true, opacity: 0.85, depthWrite: false,
+            });
+            const fruit = new THREE.Mesh(fruitGeo, fruitMat);
+            fruit.position.set(
+                (Math.random() - 0.5) * 2.2,
+                Math.random() * 1.6,
+                (Math.random() - 0.5) * 1.6
+            );
+            fruit.userData.floatSpeed = 0.008 + Math.random() * 0.004;
+            fruit.userData.baseOpacity = 0.75 + Math.random() * 0.15;
+            fruit.renderOrder = 2;
+            fruitPool.push(fruit);
+            branchGroup.add(fruit);
+        });
+    }
+
+    // 暴露全局刷新接口
+    window.refreshWishTree = rebuildFruits;
 
     // ================================================================
     // ================================================================
