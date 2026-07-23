@@ -2142,16 +2142,11 @@
     // ================================================================
     // THREE.JS — 底部许愿灵树 (今日任务完成情况实时同步)
     // ================================================================
-    // 果实颜色映射（按任务类型）— 鲜艳高饱和，成就感强烈
-    const FRUIT_COLORS = {
-        work: 0x5C9CE0,   // 宝石蓝
-        study: 0x4ECB71,  // 翡翠绿
-        life: 0xF0B840,   // 琥珀金
-    };
+    // 果实颜色映射（按任务类型）— 避绿避棕，与枝叶/树干彻底区分
     const FRUIT_COLORS_VARIANT = {
-        work: [0x5C9CE0, 0x73B2F0, 0x4888D0, 0x8EC8FF, 0x3D7CC0],
-        study: [0x4ECB71, 0x6ED890, 0x3DB85E, 0x8EEEAA, 0x35A050],
-        life: [0xF0B840, 0xF5C860, 0xE0A830, 0xFFD878, 0xD09828],
+        work: [0x5C9CE0, 0x7B8CF8, 0x4888D0, 0x6490E8, 0x3D70C0],       // 蓝紫色系
+        study: [0xD07090, 0xC860C8, 0xE080A0, 0xB850B0, 0xCC68B8],       // 粉紫/蔷薇系
+        life: [0xF08860, 0xE87850, 0xF8A070, 0xE06848, 0xFF9068],       // 珊瑚橙系
     };
 
     function getTodayCompletedTasks() {
@@ -2295,43 +2290,108 @@
             return;
         }
 
-        // 有完成任务 → 钻石形果实 + 光晕，颜色各异
-        todayDone.forEach((task) => {
-            const variants = FRUIT_COLORS_VARIANT[task.type] || FRUIT_COLORS_VARIANT.work;
-            const colorHex = variants[Math.floor(Math.random() * variants.length)];
-            const fruitColor = new THREE.Color(colorHex);
+        // 有完成任务 → 智能布局果实（不重叠、在枝干上、颜色不雷同）
+        const branchCenters = [
+            { x: -1.4, y: 0.12, z: -1.0, r: 0.72 },
+            { x:  1.2, y: 0.08, z: -0.6, r: 0.62 },
+            { x: -0.6, y: 0.18, z:  1.2, r: 0.68 },
+            { x:  1.3, y: 0.10, z:  0.9, r: 0.56 },
+        ];
+        const MIN_FRUIT_DIST = 0.55;  // 果与果最小间距
+        const existingColors = [];     // 记录本轮已用颜色
+        const existingPositions = [];  // 记录本轮已用位置
 
-            // 果实主体 — 八面体钻石形，与圆形枝叶形成鲜明对比
+        function hexToHue(hex) {
+            const r = ((hex >> 16) & 0xFF) / 255;
+            const g = ((hex >> 8) & 0xFF) / 255;
+            const b = (hex & 0xFF) / 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            if (max === min) return 0;
+            let h;
+            if (max === r) h = ((g - b) / (max - min) + 6) % 6;
+            else if (max === g) h = (b - r) / (max - min) + 2;
+            else h = (r - g) / (max - min) + 4;
+            return h * 60;
+        }
+
+        function pickBestColor(taskType) {
+            const variants = FRUIT_COLORS_VARIANT[taskType] || FRUIT_COLORS_VARIANT.work;
+            const variantHues = variants.map(c => hexToHue(c));
+            const usedHues = existingColors.map(c => hexToHue(c));
+            let bestIdx = 0, bestDist = -1;
+            for (let i = 0; i < variantHues.length; i++) {
+                const minDist = usedHues.length === 0 ? 360
+                    : Math.min(...usedHues.map(h => {
+                        const d = Math.abs(variantHues[i] - h);
+                        return Math.min(d, 360 - d);
+                    }));
+                if (minDist > bestDist) { bestDist = minDist; bestIdx = i; }
+            }
+            const picked = variants[bestIdx];
+            existingColors.push(picked);
+            return picked;
+        }
+
+        function pickPosition() {
+            for (let attempt = 0; attempt < 60; attempt++) {
+                const b = branchCenters[Math.floor(Math.random() * branchCenters.length)];
+                // 球面随机点（上半球为主，模拟果实长在枝干上方）
+                const theta = Math.random() * Math.PI * 2;
+                const phi = (Math.random() * 0.7) * (Math.PI / 2); // 0~63° 极角
+                const r = b.r * (0.55 + Math.random() * 0.45);      // 半径内
+                const px = b.x + r * Math.cos(phi) * Math.cos(theta);
+                const py = b.y + r * Math.sin(phi) + Math.random() * 0.20; // y 略偏移，始终在枝干之上
+                const pz = b.z + r * Math.cos(phi) * Math.sin(theta);
+                // 不低过树干顶部 (y ≈ -0.05，取 y > 0.05 安全区)
+                if (py < 0.05) continue;
+                // 不与已有果实重合
+                const tooClose = existingPositions.some(p => {
+                    const dx = px - p.x, dy = py - p.y, dz = pz - p.z;
+                    return Math.sqrt(dx * dx + dy * dy + dz * dz) < MIN_FRUIT_DIST;
+                });
+                if (!tooClose) {
+                    existingPositions.push({ x: px, y: py, z: pz });
+                    return { x: px, y: py, z: pz };
+                }
+            }
+            // 兜底：宽松条件（仅检查 y 最低限）
+            const b = branchCenters[Math.floor(Math.random() * branchCenters.length)];
+            const p = {
+                x: b.x + (Math.random() - 0.5) * b.r * 1.2,
+                y: Math.max(0.10, b.y + Math.random() * 0.6),
+                z: b.z + (Math.random() - 0.5) * b.r * 1.2,
+            };
+            existingPositions.push(p);
+            return p;
+        }
+
+        todayDone.forEach((task) => {
+            const colorHex = pickBestColor(task.type);
+            const fruitColor = new THREE.Color(colorHex);
+            const pos = pickPosition();
+
             const fruitGeo = new THREE.OctahedronGeometry(0.22, 0);
             const fruitMat = new THREE.MeshBasicMaterial({
-                color: fruitColor,
-                transparent: true, opacity: 0.92, depthWrite: false,
+                color: fruitColor, transparent: true, opacity: 0.92, depthWrite: false,
             });
             const fruit = new THREE.Mesh(fruitGeo, fruitMat);
 
-            // 光晕外壳 — 略大半透明八面体，制造宝石辉光感
             const glowGeo = new THREE.OctahedronGeometry(0.30, 0);
             const glowMat = new THREE.MeshBasicMaterial({
-                color: fruitColor,
-                transparent: true, opacity: 0.18, depthWrite: false,
+                color: fruitColor, transparent: true, opacity: 0.18, depthWrite: false,
             });
             const glowShell = new THREE.Mesh(glowGeo, glowMat);
 
-            // 将果实和光晕打包成组
             const fruitGroup = new THREE.Group();
             fruitGroup.add(fruit);
             fruitGroup.add(glowShell);
-            fruitGroup.position.set(
-                (Math.random() - 0.5) * 2.2,
-                Math.random() * 1.6,
-                (Math.random() - 0.5) * 1.6
-            );
+            fruitGroup.position.set(pos.x, pos.y, pos.z);
             fruitGroup.userData.floatSpeed = 0.008 + Math.random() * 0.004;
             fruitGroup.userData.baseOpacity = 0.75 + Math.random() * 0.15;
             fruitGroup.userData.fruitMat = fruitMat;
             fruitGroup.userData.glowMat = glowMat;
             fruitGroup.userData.rotateSpeed = 0.003 + Math.random() * 0.006;
-            fruitGroup.renderOrder = 2;
+            fruitGroup.renderOrder = 5; // 确保在枝叶(1)之上渲染
             fruitPool.push(fruitGroup);
             branchGroup.add(fruitGroup);
         });
