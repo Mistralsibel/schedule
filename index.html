@@ -2142,16 +2142,16 @@
     // ================================================================
     // THREE.JS — 底部许愿灵树 (今日任务完成情况实时同步)
     // ================================================================
-    // 果实颜色映射（按任务类型）
+    // 果实颜色映射（按任务类型）— 鲜艳高饱和，成就感强烈
     const FRUIT_COLORS = {
-        work: 0x6D94C0,   // 晨雾蓝
-        study: 0x6DB87D,  // 鼠尾草绿
-        life: 0xC4A44A,   // 暖金色
+        work: 0x5C9CE0,   // 宝石蓝
+        study: 0x4ECB71,  // 翡翠绿
+        life: 0xF0B840,   // 琥珀金
     };
     const FRUIT_COLORS_VARIANT = {
-        work: [0x6D94C0, 0x8BAFD6, 0xA0C4E8, 0x5A8AB5, 0x7DAAD4],
-        study: [0x6DB87D, 0x8CC99A, 0xA0D8AA, 0x5AA06A, 0x7DC890],
-        life: [0xC4A44A, 0xD4B860, 0xE0C878, 0xB09038, 0xCCB050],
+        work: [0x5C9CE0, 0x73B2F0, 0x4888D0, 0x8EC8FF, 0x3D7CC0],
+        study: [0x4ECB71, 0x6ED890, 0x3DB85E, 0x8EEEAA, 0x35A050],
+        life: [0xF0B840, 0xF5C860, 0xE0A830, 0xFFD878, 0xD09828],
     };
 
     function getTodayCompletedTasks() {
@@ -2220,10 +2220,16 @@
         function treeAnimate() {
             requestAnimationFrame(treeAnimate);
             branchGroup.rotation.y += 0.0006;
-            wishTreeState.fruitPool.forEach(fruit => {
-                fruit.position.y += Math.sin(Date.now() * 0.001 * fruit.userData.floatSpeed) * 0.004;
-                const pulse = 0.35 + Math.sin(Date.now() * 0.0018 + fruit.userData.floatSpeed * 10) * 0.15;
-                fruit.material.opacity = fruit.userData.baseOpacity * (0.88 + pulse * 0.12);
+            wishTreeState.fruitPool.forEach(group => {
+                // 上下浮动
+                group.position.y += Math.sin(Date.now() * 0.001 * group.userData.floatSpeed) * 0.004;
+                // 缓慢自转，宝石切面折射感
+                group.rotation.x += group.userData.rotateSpeed;
+                group.rotation.y += group.userData.rotateSpeed * 0.7;
+                // 光晕呼吸
+                const pulse = 0.42 + Math.sin(Date.now() * 0.0018 + group.userData.floatSpeed * 10) * 0.16;
+                if (group.userData.fruitMat) group.userData.fruitMat.opacity = group.userData.baseOpacity * (0.85 + pulse * 0.15);
+                if (group.userData.glowMat) group.userData.glowMat.opacity = 0.12 + pulse * 0.12;
             });
             wishTreeState.leafFallArr.forEach(leaf => {
                 leaf.position.y -= leaf.userData.speedY;
@@ -2244,12 +2250,14 @@
         const { branchGroup, fruitPool, leafFallArr, scene } = wishTreeState;
         if (!branchGroup) return;
 
-        // 清除旧果实
+        // 清除旧果实（Group 包含主体+光晕两个子 Mesh）
         while (fruitPool.length > 0) {
-            const f = fruitPool.pop();
-            branchGroup.remove(f);
-            if (f.material) f.material.dispose();
-            if (f.geometry) f.geometry.dispose();
+            const group = fruitPool.pop();
+            branchGroup.remove(group);
+            group.children.forEach(child => {
+                if (child.material) child.material.dispose();
+                if (child.geometry) child.geometry.dispose();
+            });
         }
         // 清除旧落叶
         while (leafFallArr.length > 0) {
@@ -2287,26 +2295,45 @@
             return;
         }
 
-        // 有完成任务 → 按类型生成果实，颜色各异
+        // 有完成任务 → 钻石形果实 + 光晕，颜色各异
         todayDone.forEach((task) => {
             const variants = FRUIT_COLORS_VARIANT[task.type] || FRUIT_COLORS_VARIANT.work;
             const colorHex = variants[Math.floor(Math.random() * variants.length)];
-            const fruitGeo = new THREE.SphereGeometry(0.16, 10, 10);
+            const fruitColor = new THREE.Color(colorHex);
+
+            // 果实主体 — 八面体钻石形，与圆形枝叶形成鲜明对比
+            const fruitGeo = new THREE.OctahedronGeometry(0.22, 0);
             const fruitMat = new THREE.MeshBasicMaterial({
-                color: new THREE.Color(colorHex),
-                transparent: true, opacity: 0.85, depthWrite: false,
+                color: fruitColor,
+                transparent: true, opacity: 0.92, depthWrite: false,
             });
             const fruit = new THREE.Mesh(fruitGeo, fruitMat);
-            fruit.position.set(
+
+            // 光晕外壳 — 略大半透明八面体，制造宝石辉光感
+            const glowGeo = new THREE.OctahedronGeometry(0.30, 0);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: fruitColor,
+                transparent: true, opacity: 0.18, depthWrite: false,
+            });
+            const glowShell = new THREE.Mesh(glowGeo, glowMat);
+
+            // 将果实和光晕打包成组
+            const fruitGroup = new THREE.Group();
+            fruitGroup.add(fruit);
+            fruitGroup.add(glowShell);
+            fruitGroup.position.set(
                 (Math.random() - 0.5) * 2.2,
                 Math.random() * 1.6,
                 (Math.random() - 0.5) * 1.6
             );
-            fruit.userData.floatSpeed = 0.008 + Math.random() * 0.004;
-            fruit.userData.baseOpacity = 0.75 + Math.random() * 0.15;
-            fruit.renderOrder = 2;
-            fruitPool.push(fruit);
-            branchGroup.add(fruit);
+            fruitGroup.userData.floatSpeed = 0.008 + Math.random() * 0.004;
+            fruitGroup.userData.baseOpacity = 0.75 + Math.random() * 0.15;
+            fruitGroup.userData.fruitMat = fruitMat;
+            fruitGroup.userData.glowMat = glowMat;
+            fruitGroup.userData.rotateSpeed = 0.003 + Math.random() * 0.006;
+            fruitGroup.renderOrder = 2;
+            fruitPool.push(fruitGroup);
+            branchGroup.add(fruitGroup);
         });
     }
 
