@@ -1839,8 +1839,11 @@
     <div class="main-header">
         <h2 class="day-title">今日安排</h2>
         <div class="control-group">
+            <button id="export-backup">导出备份</button>
+            <button id="import-backup">导入备份</button>
             <button id="export-data">导出数据</button>
             <button id="clear-done">清空已完成</button>
+            <input type="file" id="import-file" accept=".json,application/json" style="display:none">
         </div>
     </div>
     <div id="task-list"></div>
@@ -2622,6 +2625,81 @@
         a.click();
         URL.revokeObjectURL(a.href);
         showNotify("Excel数据导出完成");
+    };
+
+    // ---- 备份导出/导入 (JSON 无损, 跨浏览器/跨设备迁移数据) ----
+    document.getElementById("export-backup").onclick = () => {
+        if (taskList.length === 0) return showNotify("暂无数据可备份");
+        const backup = {
+            app: "chrono",
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            tasks: taskList
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `chrono-backup-${getLocalDateStr()}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showNotify("备份文件已导出，可在其他浏览器中导入");
+    };
+
+    const importFileInput = document.getElementById("import-file");
+    document.getElementById("import-backup").onclick = () => importFileInput.click();
+
+    importFileInput.onchange = () => {
+        const file = importFileInput.files[0];
+        importFileInput.value = "";
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            let backup;
+            try {
+                backup = JSON.parse(reader.result);
+            } catch (e) {
+                return showNotify("导入失败：文件不是有效的 JSON");
+            }
+            const list = Array.isArray(backup)
+                ? backup
+                : backup && Array.isArray(backup.tasks) ? backup.tasks : null;
+            if (!list) return showNotify("导入失败：未找到任务数据（需要本应用导出的备份文件）");
+
+            const existing = new Set(taskList.map(t => t.id));
+            const validTypes = new Set(["work", "study", "life"]);
+            const validPrios = new Set(["high", "mid", "low"]);
+            let added = 0;
+            let skipped = 0;
+
+            list.forEach(t => {
+                if (!t || typeof t !== "object") return;
+                if (typeof t.title !== "string" || !t.title.trim()) return;
+                if (typeof t.start !== "string" || typeof t.end !== "string") return;
+                if (!isValidDate(new Date(t.start)) || !isValidDate(new Date(t.end))) return;
+                if (existing.has(t.id)) { skipped++; return; } // 本地已有同 ID 任务
+
+                const task = {
+                    id: typeof t.id === "number" ? t.id : Date.now() + Math.floor(Math.random() * 1000),
+                    title: t.title,
+                    type: validTypes.has(t.type) ? t.type : "work",
+                    prio: validPrios.has(t.prio) ? t.prio : "mid",
+                    start: t.start,
+                    end: t.end,
+                    desc: typeof t.desc === "string" ? t.desc : "",
+                    done: !!t.done
+                };
+                taskList.push(task);
+                existing.add(task.id);
+                added++;
+            });
+
+            if (added === 0) return showNotify(`导入完成：没有新增任务${skipped ? `，${skipped} 条已存在被跳过` : ""}`);
+            saveStorage();
+            if (typeof window.refreshWishTree === "function") window.refreshWishTree();
+            showNotify(`导入成功：新增 ${added} 条任务${skipped ? `，跳过重复 ${skipped} 条` : ""}`);
+        };
+        reader.onerror = () => showNotify("导入失败：文件读取出错");
+        reader.readAsText(file);
     };
 
     // ---- 清空已完成 ----
