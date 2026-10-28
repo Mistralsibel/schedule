@@ -1229,6 +1229,359 @@
             letter-spacing: 0.02em;
         }
 
+        /* ---------- STAT WEEK DAY DETAILS ---------- */
+        .stat-week-days-title {
+            font-size: 17px;
+            font-weight: 400;
+            margin-bottom: 12px;
+            letter-spacing: 0.03em;
+            color: var(--text-primary);
+        }
+
+        .stat-day-row {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--glass-border);
+            margin-bottom: 10px;
+            overflow: hidden;
+            box-shadow: var(--shadow-xs);
+            transition: border-color var(--duration-fast) var(--ease-spring);
+        }
+
+        .stat-day-row.is-today {
+            border-color: var(--accent);
+        }
+
+        .stat-day-head {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-size: 15px;
+            letter-spacing: 0.03em;
+            color: var(--text-primary);
+        }
+
+        .stat-day-head .day-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-day-head .today-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(109, 148, 192, 0.16);
+            color: var(--accent);
+            letter-spacing: 0.05em;
+        }
+
+        .stat-day-head .day-summary {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .stat-day-head .chevron {
+            display: inline-block;
+            font-size: 11px;
+            color: var(--text-muted);
+            transition: transform var(--duration-fast) var(--ease-spring);
+        }
+
+        .stat-day-row.open .chevron {
+            transform: rotate(180deg);
+        }
+
+        .stat-day-body {
+            display: none;
+            border-top: 1px solid var(--glass-border);
+            padding: 8px 18px 12px;
+        }
+
+        .stat-day-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 0;
+            border-bottom: 1px dashed var(--border-light);
+            font-size: 14px;
+            letter-spacing: 0.02em;
+        }
+
+        .stat-day-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-day-item .item-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat-day-item .item-title {
+            flex: 1;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .stat-day-item.is-done .item-title {
+            text-decoration: line-through;
+            text-decoration-color: var(--text-muted);
+            color: var(--text-muted);
+        }
+
+        .stat-day-item .item-type {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .stat-day-item .item-done-badge {
+            font-size: 12px;
+            color: #7DA686;
+            white-space: nowrap;
+        }
+
+        .stat-day-empty {
+            padding: 10px 0 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+        }
+
+        /* ---------- STAT GARDEN (本周任务花园) ---------- */
+        :root {
+            /* 花园果实色 (与灵树同色相, 按亮/暗表面各自验证过的明度档位) */
+            --garden-work: #4C7EC8;
+            --garden-study: #B04C74;
+            --garden-life: #E07850;
+            --garden-done: #7DA686;
+            --chart-surface: #F3F4F8;
+        }
+
+        [data-theme="dark"] {
+            --garden-work: #5C9CE0;
+            --chart-surface: #151B26;
+        }
+
+        .stat-garden {
+            margin-top: 18px;
+        }
+
+        .stat-garden-title {
+            font-size: 17px;
+            font-weight: 400;
+            margin-bottom: 6px;
+            letter-spacing: 0.03em;
+            color: var(--text-primary);
+        }
+
+        .stat-garden-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+            margin-bottom: 12px;
+        }
+
+        .stat-garden-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 18px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+            margin-bottom: 14px;
+        }
+
+        .stat-garden-legend .swatch {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: -1px;
+        }
+
+        .stat-garden-legend .swatch.ring {
+            background: transparent;
+            border: 1.5px solid var(--text-secondary);
+        }
+
+        .stat-garden-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+            gap: 10px;
+        }
+
+        .stat-garden-day {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 10px 4px 6px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: var(--shadow-xs);
+            outline: none;
+            transition:
+                transform 0.25s var(--ease-spring),
+                border-color 0.25s var(--ease-spring),
+                box-shadow 0.25s var(--ease-spring);
+        }
+
+        .stat-garden-day:hover {
+            transform: translateY(-3px);
+            border-color: var(--glass-border-strong);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-garden-day.is-today {
+            border-color: var(--accent);
+            box-shadow: 0 0 16px rgba(109, 148, 192, 0.22), var(--shadow-xs);
+        }
+
+        .stat-garden-day-head {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+        }
+
+        .stat-garden-day-head .garden-today {
+            font-size: 10px;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 999px;
+            padding: 0 6px;
+            letter-spacing: 0.04em;
+        }
+
+        .stat-garden-count {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin: 5px 0 6px;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.03em;
+        }
+
+        .stat-garden-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: var(--bg-input);
+            margin: 0 10px 8px;
+            overflow: hidden;
+        }
+
+        .stat-garden-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--garden-done);
+            transition: width 0.4s var(--ease-spring);
+        }
+
+        .stat-garden-svg {
+            width: 100%;
+            display: block;
+        }
+
+        .garden-stem {
+            fill: none;
+            stroke: var(--text-muted);
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            opacity: 0.5;
+        }
+
+        .garden-stem-tip {
+            fill: var(--text-muted);
+            opacity: 0.6;
+        }
+
+        .garden-empty {
+            font-size: 10px;
+            fill: var(--text-muted);
+            letter-spacing: 0.03em;
+        }
+
+        .fruit {
+            stroke: var(--chart-surface);
+            stroke-width: 2;
+            filter: drop-shadow(0 0 5px var(--glow));
+            transition: transform 0.2s var(--ease-spring);
+            transform-box: fill-box;
+            transform-origin: center;
+        }
+
+        .mark:hover .fruit {
+            transform: scale(1.25);
+        }
+
+        .fruit.t-work { fill: var(--garden-work); --glow: rgba(76, 126, 200, 0.55); }
+        [data-theme="dark"] .fruit.t-work { --glow: rgba(92, 156, 224, 0.65); }
+        .fruit.t-study { fill: var(--garden-study); --glow: rgba(176, 76, 116, 0.55); }
+        .fruit.t-life { fill: var(--garden-life); --glow: rgba(224, 120, 80, 0.55); }
+
+        .bud {
+            fill: var(--chart-surface);
+            stroke-width: 1.5;
+            opacity: 0.7;
+        }
+
+        .bud.t-work { stroke: var(--garden-work); }
+        .bud.t-study { stroke: var(--garden-study); }
+        .bud.t-life { stroke: var(--garden-life); }
+
+        .fruit-label {
+            font-size: 9px;
+            fill: var(--text-secondary);
+            letter-spacing: 0.02em;
+        }
+
+        #stat-garden-tip {
+            position: fixed;
+            z-index: 999;
+            pointer-events: none;
+            display: none;
+            max-width: 220px;
+            background: var(--bg-modal);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 8px 12px;
+            font-size: 12px;
+            letter-spacing: 0.02em;
+            color: var(--text-primary);
+            box-shadow: var(--shadow-md);
+        }
+
+        #stat-garden-tip .tip-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+
         /* ---------- SELECTION ---------- */
         ::selection {
             background: rgba(109, 148, 192, 0.22);
@@ -1669,6 +2022,29 @@
 
     function getNowTime() { return new Date().getTime(); }
 
+    // 本地时区安全的 YYYY-MM-DD (toISOString 返回 UTC 日期, 国内凌晨 0~8 点会错一天)
+    function getLocalDateStr(d = new Date()) {
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${d.getFullYear()}-${m}-${day}`;
+    }
+
+    // datetime-local 输入框格式 (本地时间)
+    function toLocalInputStr(d) {
+        const h = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `${getLocalDateStr(d)}T${h}:${min}`;
+    }
+
+    // 本周范围 (周一 00:00 起, 下周一 00:00 止)
+    function getWeekRange() {
+        const now = new Date();
+        const dow = now.getDay() || 7; // 周日→7, 周一→1 ... 周六→6
+        const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow + 1);
+        const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 3600 * 1000);
+        return { weekStart, weekEnd };
+    }
+
     function isTaskRunning(start, end) {
         const now = getNowTime();
         return now >= new Date(start).getTime() && now < new Date(end).getTime();
@@ -1705,20 +2081,32 @@
 
         if (currentView === "day") {
             document.querySelector(".day-title").innerText = "今日安排";
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayStr = getLocalDateStr();
             filterTasks = filterTasks.filter(item => item.start.slice(0, 10) === todayStr);
         } else if (currentView === "week") {
             document.querySelector(".day-title").innerText = "本周全部日程";
-            const now = new Date();
-            const dow = now.getDay() || 7; // 周日→7, 周一→1 ... 周六→6
-            const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow + 1);
-            const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 3600 * 1000);
+            // 本周视图 = 花园总览 + 每日详情, 不再平铺任务卡片
+            const weekBase = currentFilter === "all"
+                ? taskList
+                : taskList.filter(t => t.type === currentFilter);
+            const weekDays = collectWeekDays(weekBase);
+            const toggleWeekDay = (d) => {
+                if (!d.bodyEl) return;
+                const open = d.bodyEl.style.display !== "none";
+                d.bodyEl.style.display = open ? "none" : "block";
+                d.rowEl.classList.toggle("open", !open);
+            };
+            buildWeekGarden(wrap, weekDays, toggleWeekDay);
+            buildWeekDayDetails(wrap, weekDays, toggleWeekDay);
+            return;
+        } else if (currentView === "stat") {
+            document.querySelector(".day-title").innerText = "日程数据统计";
+            // 只统计本周任务 (之前统计的是全部历史任务)
+            const { weekStart, weekEnd } = getWeekRange();
             filterTasks = filterTasks.filter(item => {
                 const t = new Date(item.start);
                 return t >= weekStart && t < weekEnd;
             });
-        } else if (currentView === "stat") {
-            document.querySelector(".day-title").innerText = "日程数据统计";
             const total = filterTasks.length;
             const done = filterTasks.filter(t => t.done).length;
             const work = filterTasks.filter(t => t.type === "work").length;
@@ -1728,8 +2116,8 @@
             wrap.innerHTML = `
             <div style="padding:20px 0;line-height:1.8;">
               <div class="stat-view-card">
-                <h4>任务总量概况</h4>
-                <p>全部任务：${total} 条</p>
+                <h4>本周任务概况</h4>
+                <p>本周任务：${total} 条</p>
                 <p>已完成任务：${done} 条</p>
                 <p>完成率：${total > 0 ? Math.round(done / total * 100) : 0}%</p>
               </div>
@@ -1820,11 +2208,242 @@
         });
     }
 
+    // ---- 本周总览视图: 任务花园 (可视化) + 每日详情 (可折叠表格) ----
+    const SVG_NS = "http://www.w3.org/2000/svg";
+
+    function svgEl(tag, attrs) {
+        const el = document.createElementNS(SVG_NS, tag);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        return el;
+    }
+
+    function ensureGardenTip() {
+        let tip = document.getElementById("stat-garden-tip");
+        if (tip) return tip;
+        tip = document.createElement("div");
+        tip.id = "stat-garden-tip";
+        document.body.appendChild(tip);
+        return tip;
+    }
+
+    function fillGardenTip(tip, g) {
+        tip.innerHTML = "";
+        const title = document.createElement("div");
+        title.textContent = g.dataset.title;
+        const meta = document.createElement("div");
+        meta.className = "tip-time";
+        meta.textContent = `${g.dataset.time} · ${g.dataset.type} · ${g.dataset.done ? "已完成" : "未完成"}`;
+        tip.appendChild(title);
+        tip.appendChild(meta);
+    }
+
+    // 收集本周每天的任务 (花园与详情共用同一份数据)
+    function collectWeekDays(baseTasks) {
+        const { weekStart } = getWeekRange();
+        const dayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+        const todayStr = getLocalDateStr();
+        return dayNames.map((name, i) => {
+            const day = new Date(weekStart.getTime() + i * 24 * 3600 * 1000);
+            const dayStr = getLocalDateStr(day);
+            const tasks = baseTasks
+                .filter(t => t.start.slice(0, 10) === dayStr)
+                .sort((a, b) => new Date(a.start) - new Date(b.start));
+            return {
+                name, i, dayStr, tasks,
+                done: tasks.filter(t => t.done).length,
+                isToday: dayStr === todayStr,
+                rowEl: null, bodyEl: null
+            };
+        });
+    }
+
+    function buildWeekGarden(wrap, days, toggleDay) {
+        const typeNames = { work: "工作", study: "学习", life: "生活" };
+        const pad = n => String(n).padStart(2, "0");
+        const tip = ensureGardenTip();
+
+        const garden = document.createElement("div");
+        garden.className = "stat-garden";
+        garden.innerHTML = `
+          <h4 class="stat-garden-title">本周任务花园</h4>
+          <div class="stat-garden-sub">果实位置 = 开始时间（下早 ↑ 上晚）· 发光实心 = 已完成，空心 = 未完成 · 点击任意一天查看明细</div>
+          <div class="stat-garden-legend">
+            <span><i class="swatch" style="background:var(--garden-work)"></i>工作</span>
+            <span><i class="swatch" style="background:var(--garden-study)"></i>学习</span>
+            <span><i class="swatch" style="background:var(--garden-life)"></i>生活</span>
+            <span><i class="swatch ring"></i>未完成</span>
+          </div>
+        `;
+        const grid = document.createElement("div");
+        grid.className = "stat-garden-grid";
+
+        days.forEach(d => {
+            const lean = [-12, 9, -14, 10, -12, 9, -10][d.i];
+            const p1x = 60 + lean;
+            const cx = 60 - lean * 1.1;
+
+            const card = document.createElement("div");
+            card.className = "stat-garden-day" + (d.isToday ? " is-today" : "");
+            card.setAttribute("tabindex", "0");
+            card.setAttribute("role", "button");
+
+            const head = document.createElement("div");
+            head.className = "stat-garden-day-head";
+            head.innerHTML = `${d.name} ${d.dayStr.slice(5).replace("-", "/")}${d.isToday ? `<span class="garden-today">今天</span>` : ""}`;
+
+            const count = document.createElement("div");
+            count.className = "stat-garden-count";
+            count.textContent = `${d.done}/${d.tasks.length}`;
+
+            const bar = document.createElement("div");
+            bar.className = "stat-garden-bar";
+            const barFill = document.createElement("div");
+            barFill.className = "stat-garden-bar-fill";
+            barFill.style.width = d.tasks.length ? Math.round(d.done / d.tasks.length * 100) + "%" : "0%";
+            bar.appendChild(barFill);
+
+            const svg = svgEl("svg", { viewBox: "0 0 120 190" });
+            svg.classList.add("stat-garden-svg");
+            svg.appendChild(svgEl("path", { d: `M 60 172 Q ${cx} 94 ${p1x} 16`, "class": "garden-stem" }));
+            svg.appendChild(svgEl("circle", { cx: p1x, cy: 16, r: 2.4, "class": "garden-stem-tip" }));
+
+            if (d.tasks.length === 0) {
+                const empty = svgEl("text", { x: 60, y: 96, "text-anchor": "middle", "class": "garden-empty" });
+                empty.textContent = "当日暂无安排";
+                svg.appendChild(empty);
+            } else {
+                const hourSeen = {};
+                d.tasks.forEach(task => {
+                    const s = new Date(task.start);
+                    const e = new Date(task.end);
+                    const h = s.getHours() + s.getMinutes() / 60;
+                    const k = hourSeen[s.getHours()] = (hourSeen[s.getHours()] || 0) + 1;
+                    const jx = [0, -5, 5][k % 3];
+                    const y = 172 - (h / 24) * 156;
+                    const tt = (172 - y) / 156;
+                    const mt = 1 - tt;
+                    const x = mt * mt * 60 + 2 * mt * tt * cx + tt * tt * p1x + jx;
+                    const ty = typeNames[task.type] ? task.type : "work";
+
+                    const g = svgEl("g", { "class": "mark" });
+                    g.dataset.title = task.title;
+                    g.dataset.time = `${pad(s.getHours())}:${pad(s.getMinutes())} ~ ${pad(e.getHours())}:${pad(e.getMinutes())}`;
+                    g.dataset.type = typeNames[task.type] || task.type;
+                    g.dataset.done = task.done ? "1" : "";
+
+                    g.appendChild(svgEl("circle", { cx: x, cy: y, r: 12, fill: "transparent", "class": "hit" }));
+                    g.appendChild(svgEl("circle", {
+                        cx: x, cy: y, r: task.done ? 6.5 : 5.5,
+                        "class": (task.done ? "fruit" : "bud") + " t-" + ty
+                    }));
+
+                    // 已完成任务直接标注标题 (当天任务 ≤ 4 时才标注, 避免拥挤)
+                    if (task.done && d.tasks.length <= 4) {
+                        const label = svgEl("text", {
+                            x: x < 60 ? x + 11 : x - 11,
+                            y: y + (k % 2 ? 3 : -3),
+                            "text-anchor": x < 60 ? "start" : "end",
+                            "class": "fruit-label"
+                        });
+                        label.textContent = task.title.length > 4 ? task.title.slice(0, 4) + "…" : task.title;
+                        g.appendChild(label);
+                    }
+
+                    g.addEventListener("mouseenter", () => {
+                        fillGardenTip(tip, g);
+                        tip.style.display = "block";
+                    });
+                    g.addEventListener("mousemove", (e) => {
+                        const gap = 14;
+                        let left = e.clientX + gap;
+                        if (left + tip.offsetWidth > window.innerWidth - 8) left = e.clientX - tip.offsetWidth - gap;
+                        let top = e.clientY + gap;
+                        if (top + tip.offsetHeight > window.innerHeight - 8) top = e.clientY - tip.offsetHeight - gap;
+                        tip.style.left = left + "px";
+                        tip.style.top = top + "px";
+                    });
+                    g.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+
+                    svg.appendChild(g);
+                });
+            }
+
+            card.appendChild(head);
+            card.appendChild(count);
+            card.appendChild(bar);
+            card.appendChild(svg);
+            card.onclick = () => toggleDay(d);
+            card.onkeydown = (e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleDay(d); }
+            };
+            grid.appendChild(card);
+        });
+
+        garden.appendChild(grid);
+        wrap.appendChild(garden);
+    }
+
+    function buildWeekDayDetails(wrap, days, toggleDay) {
+        const typeNames = { work: "工作", study: "学习", life: "生活" };
+        const pad = n => String(n).padStart(2, "0");
+
+        const sec = document.createElement("div");
+        sec.className = "stat-week-days";
+        sec.innerHTML = `<h4 class="stat-week-days-title">本周每日详情</h4>`;
+
+        days.forEach(d => {
+            const row = document.createElement("div");
+            row.className = "stat-day-row" + (d.isToday ? " is-today" : "");
+
+            const head = document.createElement("button");
+            head.className = "stat-day-head";
+            head.innerHTML = `
+              <span class="day-name">${d.name} ${d.dayStr.slice(5).replace("-", "/")}${d.isToday ? `<span class="today-badge">今天</span>` : ""}</span>
+              <span class="day-summary"><span>${d.tasks.length} 项 · 完成 ${d.done}</span><span class="chevron">▼</span></span>
+            `;
+
+            const body = document.createElement("div");
+            body.className = "stat-day-body";
+            if (d.tasks.length === 0) {
+                body.innerHTML = `<div class="stat-day-empty">当日暂无安排</div>`;
+            } else {
+                d.tasks.forEach(t => {
+                    const item = document.createElement("div");
+                    item.className = "stat-day-item" + (t.done ? " is-done" : "");
+                    const s = new Date(t.start);
+                    const e = new Date(t.end);
+                    item.innerHTML = `
+                      <span class="item-time">${pad(s.getHours())}:${pad(s.getMinutes())} ~ ${pad(e.getHours())}:${pad(e.getMinutes())}</span>
+                      <span class="item-title">${t.title}</span>
+                      <span class="item-type">${typeNames[t.type] || t.type}</span>
+                      ${t.done ? `<span class="item-done-badge">✓ 已完成</span>` : ""}
+                    `;
+                    if (t.desc) item.querySelector(".item-title").title = t.desc;
+                    body.appendChild(item);
+                });
+            }
+
+            head.onclick = () => toggleDay(d);
+
+            d.rowEl = row;
+            d.bodyEl = body;
+
+            row.appendChild(head);
+            row.appendChild(body);
+            sec.appendChild(row);
+        });
+
+        wrap.appendChild(sec);
+    }
+
     // ---- 统计面板 ----
     function renderStat() {
-        const total = taskList.length;
-        const done = taskList.filter(t => t.done).length;
-        const running = taskList.filter(t => !t.done && isTaskRunning(t.start, t.end)).length;
+        // 只统计今天开始的任务 (之前统计的是全部历史任务, 导致旧任务一直留在"今日统计")
+        const todayStr = getLocalDateStr();
+        const todayTasks = taskList.filter(t => t.start.slice(0, 10) === todayStr);
+        const total = todayTasks.length;
+        const done = todayTasks.filter(t => t.done).length;
+        const running = todayTasks.filter(t => !t.done && isTaskRunning(t.start, t.end)).length;
         const rate = total === 0 ? "0%" : Math.round(done / total * 100) + "%";
         document.getElementById("stat-total").innerText = total;
         document.getElementById("stat-done").innerText = done;
@@ -1849,8 +2468,8 @@
         const now = new Date();
         const t1 = new Date(now.getTime() + 3600 * 1000);
         const t2 = new Date(now.getTime() + 2 * 3600 * 1000);
-        inputs.start.value = t1.toISOString().slice(0, 16);
-        inputs.end.value = t2.toISOString().slice(0, 16);
+        inputs.start.value = toLocalInputStr(t1);
+        inputs.end.value = toLocalInputStr(t2);
         inputs.title.value = "";
         inputs.desc.value = "";
         inputs.type.value = "work";
@@ -2140,7 +2759,10 @@
             while (pointGroup.children.length > 0) {
                 pointGroup.remove(pointGroup.children[0]);
             }
-            taskList.forEach(task => {
+            const todayStr = getLocalDateStr();
+            // 轨道是 24 小时时钟环, 只画今天的任务 (之前画的是全部历史任务)
+            const todayTasks = taskList.filter(t => t.start.slice(0, 10) === todayStr);
+            todayTasks.forEach(task => {
                 const tStart = new Date(task.start).getHours();
                 const rad = (tStart / 24) * Math.PI * 2;
                 const r = 1.5;
@@ -2193,7 +2815,7 @@
     };
 
     function getTodayCompletedTasks() {
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = getLocalDateStr();
         return taskList.filter(t => t.done && t.start.slice(0, 10) === todayStr);
     }
 
