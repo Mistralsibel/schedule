@@ -1364,6 +1364,69 @@
             letter-spacing: 0.02em;
         }
 
+        .stat-day-item .item-extend {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--border-light);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+            transition: all var(--duration-fast) var(--ease-spring);
+        }
+
+        .stat-day-item .item-extend:hover {
+            background: rgba(109, 148, 192, 0.10);
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .stat-day-item .item-overdue-badge {
+            font-size: 11px;
+            color: var(--overdue);
+            white-space: nowrap;
+            letter-spacing: 0.03em;
+        }
+
+        .stat-day-item.is-overdue .item-time {
+            color: var(--overdue);
+        }
+
+        .bud.overdue {
+            stroke: var(--overdue);
+        }
+
+        .extend-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0 16px;
+        }
+
+        .extend-presets button {
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--border-light);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: all var(--duration-fast) var(--ease-spring);
+        }
+
+        .extend-presets button:hover {
+            background: rgba(109, 148, 192, 0.10);
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-1px);
+        }
+
         /* ---------- STAT GARDEN (本周任务花园) ---------- */
         :root {
             /* 花园果实色 (与灵树同色相, 按亮/暗表面各自验证过的明度档位) */
@@ -1948,6 +2011,35 @@
     </div>
 </div>
 
+<!-- ====== 延长截止时间弹窗 ====== -->
+<div class="modal-mask" id="extend-modal">
+    <div class="modal-box" style="width:400px;">
+        <h3 class="modal-title">延长截止时间</h3>
+        <div class="form-row">
+            <label>任务</label>
+            <span id="extend-task-title" style="font-size:14px;color:var(--text-primary)"></span>
+        </div>
+        <div class="form-row">
+            <label>当前截止</label>
+            <span id="extend-current-end" style="font-size:14px;color:var(--text-secondary)"></span>
+        </div>
+        <div class="form-row">
+            <label>新截止时间</label>
+            <input type="datetime-local" id="extend-new-end">
+        </div>
+        <div class="extend-presets">
+            <button data-extend-preset="today24">今晚 24:00</button>
+            <button data-extend-preset="tomorrow24">明天 24:00</button>
+            <button data-extend-preset="d3">三天后</button>
+            <button data-extend-preset="d7">一周后</button>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn-cancel" id="extend-cancel">取消</button>
+            <button class="btn-save" id="extend-save">确认延长</button>
+        </div>
+    </div>
+</div>
+
 <!-- ====== THREE.JS ====== -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js">
 </script>
@@ -2084,8 +2176,15 @@
 
         if (currentView === "day") {
             document.querySelector(".day-title").innerText = "今日安排";
-            const todayStr = getLocalDateStr();
-            filterTasks = filterTasks.filter(item => item.start.slice(0, 10) === todayStr);
+            // 跨天任务: 任务区间与今天有交集, 今天就显示 (周二开始周五结束 → 周二到周五每天都可见)
+            const dayStart = new Date();
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+            filterTasks = filterTasks.filter(item => {
+                const s = new Date(item.start);
+                const e = new Date(item.end);
+                return s < dayEnd && e > dayStart;
+            });
         } else if (currentView === "week") {
             document.querySelector(".day-title").innerText = "本周全部日程";
             // 本周视图 = 花园总览 + 每日详情, 不再平铺任务卡片
@@ -2104,11 +2203,12 @@
             return;
         } else if (currentView === "stat") {
             document.querySelector(".day-title").innerText = "日程数据统计";
-            // 只统计本周任务 (之前统计的是全部历史任务)
+            // 只统计本周任务 (之前统计的是全部历史任务); 跨周任务按与本周末的交集计入
             const { weekStart, weekEnd } = getWeekRange();
             filterTasks = filterTasks.filter(item => {
-                const t = new Date(item.start);
-                return t >= weekStart && t < weekEnd;
+                const s = new Date(item.start);
+                const e = new Date(item.end);
+                return s < weekEnd && e > weekStart;
             });
             const total = filterTasks.length;
             const done = filterTasks.filter(t => t.done).length;
@@ -2180,6 +2280,7 @@
             <div class="task-actions">
               <button class="btn-done">${task.done ? "撤销完成" : "标记完成"}</button>
               <button class="btn-edit">编辑</button>
+              <button class="btn-extend">延长</button>
               <button class="btn-del">删除</button>
             </div>
           `;
@@ -2187,6 +2288,8 @@
             card.querySelector(".btn-done").onclick = () => {
                 const wasDone = task.done;
                 task.done = !task.done;
+                if (task.done) task.completedAt = Date.now();
+                else delete task.completedAt;
                 if (task.done && !wasDone) {
                     card.classList.add("task-complete-flash");
                     setTimeout(() => card.classList.remove("task-complete-flash"), 650);
@@ -2197,6 +2300,7 @@
                 if (task.done && !wasDone) showNotify("已完成一项任务，灵树结出新果实 ✨");
             };
             card.querySelector(".btn-edit").onclick = () => openEditModal(task.id);
+            card.querySelector(".btn-extend").onclick = () => openExtendModal(task.id);
             card.querySelector(".btn-del").onclick = () => {
                 card.style.opacity = "0";
                 card.style.transform = "scale(0.92)";
@@ -2248,8 +2352,14 @@
         return dayNames.map((name, i) => {
             const day = new Date(weekStart.getTime() + i * 24 * 3600 * 1000);
             const dayStr = getLocalDateStr(day);
+            const dayEnd = new Date(day.getTime() + 24 * 3600 * 1000);
+            // 跨天任务在其存续期间的每一天都出现 (花园与每日详情一致)
             const tasks = baseTasks
-                .filter(t => t.start.slice(0, 10) === dayStr)
+                .filter(t => {
+                    const s = new Date(t.start);
+                    const e = new Date(t.end);
+                    return s < dayEnd && e > day;
+                })
                 .sort((a, b) => new Date(a.start) - new Date(b.start));
             return {
                 name, i, dayStr, tasks,
@@ -2335,9 +2445,10 @@
                     g.dataset.done = task.done ? "1" : "";
 
                     g.appendChild(svgEl("circle", { cx: x, cy: y, r: 12, fill: "transparent", "class": "hit" }));
+                    const overdue = !task.done && isTaskOverdue(task.end);
                     g.appendChild(svgEl("circle", {
                         cx: x, cy: y, r: task.done ? 6.5 : 5.5,
-                        "class": (task.done ? "fruit" : "bud") + " t-" + ty
+                        "class": (task.done ? "fruit" : "bud") + " t-" + ty + (overdue ? " overdue" : "")
                     }));
 
                     // 已完成任务直接标注标题 (当天任务 ≤ 4 时才标注, 避免拥挤)
@@ -2412,7 +2523,8 @@
             } else {
                 d.tasks.forEach(t => {
                     const item = document.createElement("div");
-                    item.className = "stat-day-item" + (t.done ? " is-done" : "");
+                    const overdue = !t.done && isTaskOverdue(t.end);
+                    item.className = "stat-day-item" + (t.done ? " is-done" : "") + (overdue ? " is-overdue" : "");
                     const s = new Date(t.start);
                     const e = new Date(t.end);
                     item.innerHTML = `
@@ -2420,7 +2532,13 @@
                       <span class="item-title">${t.title}</span>
                       <span class="item-type">${typeNames[t.type] || t.type}</span>
                       ${t.done ? `<span class="item-done-badge">✓ 已完成</span>` : ""}
+                      ${overdue ? `<span class="item-overdue-badge">已逾期</span>` : ""}
                     `;
+                    const extBtn = document.createElement("button");
+                    extBtn.className = "item-extend";
+                    extBtn.textContent = "延长";
+                    extBtn.onclick = (ev) => { ev.stopPropagation(); openExtendModal(t.id); };
+                    item.appendChild(extBtn);
                     if (t.desc) item.querySelector(".item-title").title = t.desc;
                     body.appendChild(item);
                 });
@@ -2441,9 +2559,15 @@
 
     // ---- 统计面板 ----
     function renderStat() {
-        // 只统计今天开始的任务 (之前统计的是全部历史任务, 导致旧任务一直留在"今日统计")
-        const todayStr = getLocalDateStr();
-        const todayTasks = taskList.filter(t => t.start.slice(0, 10) === todayStr);
+        // 只统计与今天有交集的任务 (跨天任务在存续期间每天都计入)
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+        const todayTasks = taskList.filter(t => {
+            const s = new Date(t.start);
+            const e = new Date(t.end);
+            return s < dayEnd && e > dayStart;
+        });
         const total = todayTasks.length;
         const done = todayTasks.filter(t => t.done).length;
         const running = todayTasks.filter(t => !t.done && isTaskRunning(t.start, t.end)).length;
@@ -2511,6 +2635,8 @@
         if (endTime <= startTime) {
             return showNotify("错误：结束时间不能早于或等于开始时间，请重新调整时间");
         }
+        // 编辑时保留完成状态与完成时间 (之前硬编码 done:false 会把已完成任务改回未完成)
+        const existing = editTaskId ? taskList.find(t => t.id === editTaskId) : null;
         const data = {
             id: editTaskId || Date.now().toString(),
             title,
@@ -2519,8 +2645,9 @@
             start: startStr,
             end: endStr,
             desc: inputs.desc.value.trim(),
-            done: false
+            done: existing ? !!existing.done : false
         };
+        if (existing && existing.completedAt) data.completedAt = existing.completedAt;
         if (editTaskId) {
             const idx = taskList.findIndex(t => t.id === editTaskId);
             if (idx !== -1) taskList[idx] = data;
@@ -2531,6 +2658,65 @@
         saveStorage();
         if (typeof window.refreshWishTree === "function") window.refreshWishTree();
         showNotify("日程保存成功 ✓");
+    };
+
+    // ---- 延长截止时间 ----
+    let extendTaskId = null;
+    const extendModal = document.getElementById("extend-modal");
+    const extendTitle = document.getElementById("extend-task-title");
+    const extendCurrent = document.getElementById("extend-current-end");
+    const extendInput = document.getElementById("extend-new-end");
+
+    function openExtendModal(id) {
+        const task = taskList.find(t => t.id === id);
+        if (!task) return;
+        extendTaskId = id;
+        extendTitle.textContent = task.title;
+        extendCurrent.textContent = new Date(task.end).toLocaleString("zh-CN");
+        extendInput.value = toLocalInputStr(new Date(Date.now() + 24 * 3600 * 1000));
+        extendModal.style.display = "flex";
+    }
+
+    function closeExtendModal() {
+        extendModal.style.display = "none";
+        extendTaskId = null;
+    }
+
+    document.querySelectorAll("[data-extend-preset]").forEach(btn => {
+        btn.onclick = () => {
+            const now = new Date();
+            let target;
+            if (btn.dataset.extendPreset === "today24") {
+                target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1); // 今晚24:00 = 明天00:00
+            } else if (btn.dataset.extendPreset === "tomorrow24") {
+                target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2); // 明天24:00
+            } else if (btn.dataset.extendPreset === "d3") {
+                target = new Date(now.getTime() + 3 * 24 * 3600 * 1000);
+            } else {
+                target = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
+            }
+            extendInput.value = toLocalInputStr(target);
+        };
+    });
+
+    document.getElementById("extend-cancel").onclick = closeExtendModal;
+    extendModal.onclick = (e) => { if (e.target === extendModal) closeExtendModal(); };
+
+    document.getElementById("extend-save").onclick = () => {
+        const task = taskList.find(t => t.id === extendTaskId);
+        if (!task) return closeExtendModal();
+        const val = extendInput.value.trim();
+        if (!val) return showNotify("请选择新的截止时间");
+        const newEnd = new Date(val);
+        if (!isValidDate(newEnd)) return showNotify("时间格式无效，请重新选择");
+        const start = new Date(task.start);
+        if (newEnd <= start) return showNotify("错误：截止时间必须晚于开始时间");
+        const wasLater = newEnd.getTime() > new Date(task.end).getTime();
+        task.end = val;
+        saveStorage();
+        if (typeof window.refreshWishTree === "function") window.refreshWishTree();
+        closeExtendModal();
+        showNotify(wasLater ? "截止时间已延长 ✨" : "截止时间已更新");
     };
 
     // ---- 专注模式 ----
@@ -2837,9 +3023,15 @@
             while (pointGroup.children.length > 0) {
                 pointGroup.remove(pointGroup.children[0]);
             }
-            const todayStr = getLocalDateStr();
-            // 轨道是 24 小时时钟环, 只画今天的任务 (之前画的是全部历史任务)
-            const todayTasks = taskList.filter(t => t.start.slice(0, 10) === todayStr);
+            // 轨道是 24 小时时钟环, 只画与今天有交集的任务 (跨天任务存续期间每天显示)
+            const dayStart = new Date();
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+            const todayTasks = taskList.filter(t => {
+                const s = new Date(t.start);
+                const e = new Date(t.end);
+                return s < dayEnd && e > dayStart;
+            });
             todayTasks.forEach(task => {
                 const tStart = new Date(task.start).getHours();
                 const rad = (tStart / 24) * Math.PI * 2;
@@ -2894,7 +3086,12 @@
 
     function getTodayCompletedTasks() {
         const todayStr = getLocalDateStr();
-        return taskList.filter(t => t.done && t.start.slice(0, 10) === todayStr);
+        return taskList.filter(t => {
+            if (!t.done) return false;
+            // 有完成时间按完成时间归属; 旧数据没有完成时间则按开始日期兜底
+            if (t.completedAt) return getLocalDateStr(new Date(t.completedAt)) === todayStr;
+            return t.start.slice(0, 10) === todayStr;
+        });
     }
 
     const wishTreeState = { fruitPool: [], leafFallArr: [], branchGroup: null, scene: null, renderer: null, camera: null };
