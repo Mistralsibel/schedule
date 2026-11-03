@@ -682,6 +682,162 @@
             text-decoration-thickness: 1px;
         }
 
+        /* ---------- 已完成任务细条 (灰度沉底) ---------- */
+        .task-done-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--glass-border);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.10));
+            cursor: pointer;
+            outline: none;
+            filter: grayscale(1);
+            opacity: 0.55;
+            overflow: hidden;
+            transition:
+                opacity 0.3s var(--ease-spring),
+                filter 0.3s var(--ease-spring),
+                transform 0.3s var(--ease-spring),
+                box-shadow 0.3s var(--ease-spring),
+                border-color 0.3s var(--ease-spring);
+            animation: cardEnter 0.45s var(--ease-out-expo) both;
+        }
+
+        [data-theme="dark"] .task-done-bar {
+            background: rgba(16, 22, 32, 0.25);
+        }
+
+        .task-done-bar:hover {
+            opacity: 0.75;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xs);
+        }
+
+        .task-done-bar.open {
+            filter: none;
+            opacity: 0.9;
+            transform: translateX(-6px);
+            border-color: var(--glass-border-strong);
+        }
+
+        .task-done-bar .done-check {
+            font-size: 12px;
+            color: var(--garden-done);
+            flex-shrink: 0;
+        }
+
+        .task-done-bar .done-title {
+            flex: 1;
+            font-size: 14px;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .task-done-bar .done-chevron {
+            font-size: 14px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+            transition: transform 0.3s var(--ease-spring);
+        }
+
+        .task-done-bar.open .done-chevron {
+            transform: rotate(90deg);
+        }
+
+        .task-done-bar .done-actions {
+            display: flex;
+            gap: 6px;
+            max-width: 0;
+            opacity: 0;
+            transform: translateX(16px);
+            overflow: hidden;
+            transition:
+                max-width 0.38s var(--ease-out-expo),
+                opacity 0.28s var(--ease-spring),
+                transform 0.38s var(--ease-out-expo);
+        }
+
+        .task-done-bar.open .done-actions {
+            max-width: 340px;
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .task-done-bar .done-actions button {
+            font-size: 11px;
+            padding: 4px 11px;
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--border-light);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateX(10px);
+            transition:
+                opacity 0.25s var(--ease-spring),
+                transform 0.25s var(--ease-spring),
+                background 0.2s,
+                border-color 0.2s,
+                color 0.2s;
+        }
+
+        .task-done-bar.open .done-actions button {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .task-done-bar.open .done-actions button:nth-child(1) { transition-delay: 0.05s; }
+        .task-done-bar.open .done-actions button:nth-child(2) { transition-delay: 0.09s; }
+        .task-done-bar.open .done-actions button:nth-child(3) { transition-delay: 0.13s; }
+        .task-done-bar.open .done-actions button:nth-child(4) { transition-delay: 0.17s; }
+
+        .task-done-bar .done-actions button:hover {
+            background: rgba(109, 148, 192, 0.10);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .task-done-bar .done-actions .da-del:hover {
+            background: rgba(204, 138, 138, 0.12);
+            border-color: var(--overdue);
+            color: var(--overdue);
+        }
+
+        .done-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 18px 0 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+        }
+
+        .done-divider::before,
+        .done-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--glass-border);
+        }
+
+        .all-done-hint {
+            padding: 24px 0 8px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
         .task-actions {
             display: flex;
             gap: 8px;
@@ -2259,60 +2415,143 @@
             return;
         }
 
-        filterTasks.forEach((task, index) => {
-            const card = document.createElement("div");
-            let prioClass = `task-prio-${task.prio}`;
-            if (!task.done && isTaskOverdue(task.end)) prioClass = "task-overdue";
-            let runClass = (!task.done && isTaskRunning(task.start, task.end)) ? "task-running" : "";
-            let doneClass = task.done ? "task-done" : "";
-            const sTime = new Date(task.start).toLocaleString("zh-CN");
-            const eTime = new Date(task.end).toLocaleString("zh-CN");
-            card.className = `task-card ${prioClass} ${runClass} ${doneClass}`;
-            card.dataset.id = task.id;
-            card.style.animationDelay = `${index * 0.04}s`;
-            card.innerHTML = `
-            <div class="task-title">${task.title}</div>
-            <div class="task-meta">
-              <span>${sTime} ~ ${eTime}</span>
-              <span>${task.type === "work" ? "工作" : task.type === "study" ? "学习" : "生活"}</span>
-            </div>
-            ${task.desc ? `<div class="task-desc-inline">${task.desc}</div>` : ""}
-            <div class="task-actions">
-              <button class="btn-done">${task.done ? "撤销完成" : "标记完成"}</button>
-              <button class="btn-edit">编辑</button>
-              <button class="btn-extend">延长</button>
-              <button class="btn-del">删除</button>
-            </div>
-          `;
+        // ---- 今日视图: 待办在上, 已完成沉底 (细条灰度样式) ----
+        if (currentView === "day") {
+            const active = filterTasks.filter(t => !t.done);
+            const done = filterTasks
+                .filter(t => t.done)
+                .sort((a, b) => (b.completedAt || new Date(b.end).getTime()) - (a.completedAt || new Date(a.end).getTime()));
 
-            card.querySelector(".btn-done").onclick = () => {
-                const wasDone = task.done;
-                task.done = !task.done;
-                if (task.done) task.completedAt = Date.now();
-                else delete task.completedAt;
-                if (task.done && !wasDone) {
-                    card.classList.add("task-complete-flash");
-                    setTimeout(() => card.classList.remove("task-complete-flash"), 650);
-                }
+            if (active.length === 0 && done.length > 0) {
+                const hint = document.createElement("div");
+                hint.className = "all-done-hint";
+                hint.textContent = "今日任务已全部完成 ✨";
+                wrap.appendChild(hint);
+            }
+
+            active.forEach((task, index) => wrap.appendChild(buildTaskCard(task, index)));
+
+            if (done.length > 0) {
+                const divider = document.createElement("div");
+                divider.className = "done-divider";
+                divider.textContent = `已完成 ${done.length} 项`;
+                wrap.appendChild(divider);
+                done.forEach(task => wrap.appendChild(buildDoneBar(task)));
+            }
+            return;
+        }
+
+        filterTasks.forEach((task, index) => wrap.appendChild(buildTaskCard(task, index)));
+    }
+
+    // ---- 今日任务卡片 (待办区) ----
+    function buildTaskCard(task, index) {
+        const card = document.createElement("div");
+        let prioClass = `task-prio-${task.prio}`;
+        if (!task.done && isTaskOverdue(task.end)) prioClass = "task-overdue";
+        const runClass = (!task.done && isTaskRunning(task.start, task.end)) ? "task-running" : "";
+        const sTime = new Date(task.start).toLocaleString("zh-CN");
+        const eTime = new Date(task.end).toLocaleString("zh-CN");
+        card.className = `task-card ${prioClass} ${runClass}`;
+        card.dataset.id = task.id;
+        card.style.animationDelay = `${index * 0.04}s`;
+        card.innerHTML = `
+        <div class="task-title">${task.title}</div>
+        <div class="task-meta">
+          <span>${sTime} ~ ${eTime}</span>
+          <span>${task.type === "work" ? "工作" : task.type === "study" ? "学习" : "生活"}</span>
+        </div>
+        ${task.desc ? `<div class="task-desc-inline">${task.desc}</div>` : ""}
+        <div class="task-actions">
+          <button class="btn-done">标记完成</button>
+          <button class="btn-edit">编辑</button>
+          <button class="btn-extend">延长</button>
+          <button class="btn-del">删除</button>
+        </div>
+      `;
+
+        card.querySelector(".btn-done").onclick = () => {
+            const wasDone = task.done;
+            task.done = !task.done;
+            if (task.done) task.completedAt = Date.now();
+            else delete task.completedAt;
+            if (task.done && !wasDone) {
+                card.classList.add("task-complete-flash");
+                setTimeout(() => card.classList.remove("task-complete-flash"), 650);
+            }
+            saveStorage();
+            // 完成/撤销都刷新灵树（果实与今日完成任务同步）
+            if (typeof window.refreshWishTree === "function") window.refreshWishTree();
+            if (task.done && !wasDone) showNotify("已完成一项任务，灵树结出新果实 ✨");
+        };
+        card.querySelector(".btn-edit").onclick = () => openEditModal(task.id);
+        card.querySelector(".btn-extend").onclick = () => openExtendModal(task.id);
+        card.querySelector(".btn-del").onclick = () => {
+            card.style.opacity = "0";
+            card.style.transform = "scale(0.92)";
+            setTimeout(() => {
+                taskList = taskList.filter(t => t.id !== task.id);
                 saveStorage();
-                // 完成/撤销都刷新灵树（果实与今日完成任务同步）
                 if (typeof window.refreshWishTree === "function") window.refreshWishTree();
-                if (task.done && !wasDone) showNotify("已完成一项任务，灵树结出新果实 ✨");
-            };
-            card.querySelector(".btn-edit").onclick = () => openEditModal(task.id);
-            card.querySelector(".btn-extend").onclick = () => openExtendModal(task.id);
-            card.querySelector(".btn-del").onclick = () => {
-                card.style.opacity = "0";
-                card.style.transform = "scale(0.92)";
-                setTimeout(() => {
-                    taskList = taskList.filter(t => t.id !== task.id);
-                    saveStorage();
-                    if (typeof window.refreshWishTree === "function") window.refreshWishTree();
-                    showNotify("任务已删除");
-                }, 220);
-            };
-            wrap.appendChild(card);
+                showNotify("任务已删除");
+            }, 220);
+        };
+        return card;
+    }
+
+    // ---- 今日已完成任务 (细条灰度, 沉底, 点击展开操作) ----
+    function buildDoneBar(task) {
+        const bar = document.createElement("div");
+        bar.className = "task-done-bar";
+        bar.setAttribute("role", "button");
+        bar.setAttribute("tabindex", "0");
+        bar.setAttribute("aria-expanded", "false");
+        bar.innerHTML = `
+          <span class="done-check">✓</span>
+          <span class="done-title"></span>
+          <span class="done-chevron">›</span>
+          <div class="done-actions">
+            <button class="da-undo">撤销完成</button>
+            <button class="da-extend">延长</button>
+            <button class="da-edit">编辑</button>
+            <button class="da-del">删除</button>
+          </div>
+        `;
+        bar.querySelector(".done-title").textContent = task.title;
+        if (task.desc) bar.querySelector(".done-title").title = task.desc;
+
+        const toggle = () => {
+            const open = bar.classList.toggle("open");
+            bar.setAttribute("aria-expanded", String(open));
+        };
+        bar.addEventListener("click", (e) => {
+            if (e.target.closest("button")) return; // 点按钮不折叠
+            toggle();
         });
+        bar.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+        });
+
+        bar.querySelector(".da-undo").onclick = () => {
+            task.done = false;
+            delete task.completedAt;
+            saveStorage();
+            if (typeof window.refreshWishTree === "function") window.refreshWishTree();
+            showNotify("已恢复为待办");
+        };
+        bar.querySelector(".da-extend").onclick = () => openExtendModal(task.id);
+        bar.querySelector(".da-edit").onclick = () => openEditModal(task.id);
+        bar.querySelector(".da-del").onclick = () => {
+            bar.style.opacity = "0";
+            bar.style.transform = "scale(0.96)";
+            setTimeout(() => {
+                taskList = taskList.filter(t => t.id !== task.id);
+                saveStorage();
+                if (typeof window.refreshWishTree === "function") window.refreshWishTree();
+                showNotify("任务已删除");
+            }, 220);
+        };
+        return bar;
     }
 
     // ---- 本周总览视图: 任务花园 (可视化) + 每日详情 (可折叠表格) ----
