@@ -1099,6 +1099,32 @@
             height: 90%;
         }
 
+        .orbit-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px 12px;
+            margin-top: 10px;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.03em;
+        }
+
+        .orbit-legend i {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+            vertical-align: -1px;
+        }
+
+        .orbit-legend .orbit-count {
+            margin-left: auto;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
         .orbit-label {
             position: absolute;
             top: 14px;
@@ -2240,6 +2266,13 @@
     <div class="panel-card" id="orbit-canvas-wrap">
         <span class="orbit-label">时间轨道</span>
         <canvas id="orbit-canvas"></canvas>
+        <div class="orbit-legend">
+            <span><i style="background:#6D94C0"></i>进行中</span>
+            <span><i style="background:#CC8A8A"></i>已逾期</span>
+            <span><i style="background:#7DA686"></i>待开始</span>
+            <span><i style="background:#A8B8C8"></i>已完成</span>
+            <span id="orbit-count" class="orbit-count"></span>
+        </div>
     </div>
     <div class="panel-card">
         <h3 style="margin-bottom:14px;font-size:16px;font-weight:400;letter-spacing:0.03em;">今日统计</h3>
@@ -3586,9 +3619,20 @@
                 const e = new Date(t.end);
                 return s < dayEnd && e > dayStart;
             });
+            const doneCount = todayTasks.filter(t => t.done).length;
+            const countEl = document.getElementById("orbit-count");
+            if (countEl) countEl.textContent = `今日 ${todayTasks.length} 项 · 已完成 ${doneCount} 项`;
+
+            // 同一小时多个任务沿轨道错开, 避免重叠成一个点
+            const hourSeen = {};
+            const OFF_DEG = [0, 5, -5, 8, -8, 2.5, -2.5];
             todayTasks.forEach(task => {
-                const tStart = new Date(task.start).getHours();
-                const rad = (tStart / 24) * Math.PI * 2;
+                const s = new Date(task.start);
+                const hourKey = s.getHours();
+                const k = hourSeen[hourKey] = (hourSeen[hourKey] || 0) + 1;
+                const deg = OFF_DEG[(k - 1) % OFF_DEG.length] || 0;
+                // 位置精确到分钟 (之前只取小时, 同小时任务完全重叠)
+                const rad = ((s.getHours() + s.getMinutes() / 60) / 24) * Math.PI * 2 + deg * Math.PI / 180;
                 const r = 1.5;
                 const x = Math.cos(rad) * r;
                 const y = Math.sin(rad) * r;
