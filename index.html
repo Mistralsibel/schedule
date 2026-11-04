@@ -908,6 +908,79 @@
             100% { transform: scale(0.15) translateY(18px); opacity: 0; }
         }
 
+        /* ---------- 全部完成: 蓝黑流星雨 ---------- */
+        #meteor-shower {
+            position: fixed;
+            inset: 0;
+            z-index: 1250;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.45s;
+            overflow: hidden;
+        }
+
+        #meteor-shower.show {
+            opacity: 1;
+        }
+
+        .ms-veil {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 45%, rgba(10, 14, 26, 0) 30%, rgba(8, 12, 24, 0.55) 100%);
+        }
+
+        .ms-star {
+            position: absolute;
+            border-radius: 50%;
+            background: #DFE9F8;
+            box-shadow: 0 0 6px 1px rgba(200, 220, 255, 0.8);
+            animation: msTwinkle 1.4s ease-in-out infinite;
+        }
+
+        @keyframes msTwinkle {
+            0%, 100% { opacity: 0.15; transform: scale(0.7); }
+            50% { opacity: 0.9; transform: scale(1); }
+        }
+
+        .ms-meteor {
+            position: absolute;
+            height: 2px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(160, 196, 232, 0.85) 78%, #FFFFFF 100%);
+            box-shadow: 0 0 10px 1px rgba(140, 180, 230, 0.8);
+            transform-origin: left center;
+            opacity: 0;
+            animation: msFly 1.6s linear forwards;
+        }
+
+        /* 蓝黑色深色流星 (约 1/3) */
+        .ms-meteor.deep {
+            background: linear-gradient(90deg, rgba(20, 30, 60, 0) 0%, rgba(70, 100, 160, 0.9) 78%, #A0C4E8 100%);
+            box-shadow: 0 0 8px 1px rgba(70, 100, 160, 0.7);
+        }
+
+        .ms-meteor::after {
+            content: "";
+            position: absolute;
+            right: -1px;
+            top: 50%;
+            width: 6px;
+            height: 6px;
+            transform: translate(0, -50%);
+            border-radius: 50%;
+            background: #FFFFFF;
+            box-shadow:
+                0 0 14px 4px rgba(150, 190, 240, 0.9),
+                0 0 30px 8px rgba(90, 130, 200, 0.5);
+        }
+
+        @keyframes msFly {
+            0% { opacity: 0; transform: rotate(var(--angle)) translateX(0) scaleX(0.4); }
+            10% { opacity: 1; }
+            75% { opacity: 1; }
+            100% { opacity: 0; transform: rotate(var(--angle)) translateX(var(--dist)) scaleX(1); }
+        }
+
         .task-actions {
             display: flex;
             gap: 8px;
@@ -2560,15 +2633,19 @@
             task.done = !task.done;
             if (task.done) task.completedAt = Date.now();
             else delete task.completedAt;
+            const allDone = task.done && !wasDone && isTodayAllDone();
             if (task.done && !wasDone) {
                 card.classList.add("task-complete-flash");
                 setTimeout(() => card.classList.remove("task-complete-flash"), 650);
-                playCompleteFlash();
+                if (allDone) playMeteorShower();
+                else playCompleteFlash();
             }
             saveStorage();
             // 完成/撤销都刷新灵树（果实与今日完成任务同步）
             if (typeof window.refreshWishTree === "function") window.refreshWishTree();
-            if (task.done && !wasDone) showNotify("已完成一项任务，灵树结出新果实 ✨");
+            if (task.done && !wasDone) {
+                showNotify(allDone ? "今日任务已全部完成，流星雨为你而落 🌠" : "已完成一项任务，灵树结出新果实 ✨");
+            }
         };
         card.querySelector(".btn-edit").onclick = () => openEditModal(task.id);
         card.querySelector(".btn-extend").onclick = () => openExtendModal(task.id);
@@ -2586,6 +2663,60 @@
     }
 
     // ---- 完成瞬间: 全屏星尘闪烁 ----
+    function isTodayAllDone() {
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+        const todayTasks = taskList.filter(t => {
+            const s = new Date(t.start);
+            const e = new Date(t.end);
+            return s < dayEnd && e > dayStart;
+        });
+        return todayTasks.length > 0 && todayTasks.every(t => t.done);
+    }
+
+    // ---- 全部完成: 蓝黑流星雨 (程序化生成, 无需外部素材) ----
+    function playMeteorShower() {
+        let wrap = document.getElementById("meteor-shower");
+        if (!wrap) {
+            wrap = document.createElement("div");
+            wrap.id = "meteor-shower";
+            wrap.innerHTML = `<div class="ms-veil"></div>`;
+            document.body.appendChild(wrap);
+        }
+        wrap.querySelectorAll(".ms-meteor, .ms-star").forEach(m => m.remove());
+
+        // 背景闪烁星层
+        let frag = "";
+        for (let i = 0; i < 26; i++) {
+            const size = 1.5 + Math.random() * 1.2;
+            const x = Math.random() * 100;
+            const y = Math.random() * 100;
+            const delay = Math.random() * 1.4;
+            frag += `<span class="ms-star" style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;animation-delay:${delay}s"></span>`;
+        }
+        // 流星: 22°~60° 俯冲, 从屏幕外左上入场, 亮蓝与深蓝(蓝黑)混合
+        for (let i = 0; i < 46; i++) {
+            const angle = 22 + Math.random() * 38;
+            const x = Math.random() * 110 - 15;
+            const y = Math.random() * 50 - 5;
+            const dist = (55 + Math.random() * 75) + "vmax";
+            const dur = 1.1 + Math.random() * 1.3;
+            const delay = Math.random() * 1.4;
+            const len = 90 + Math.random() * 140;
+            const thick = 1.5 + Math.random() * 1.2;
+            const deep = Math.random() < 0.35;
+            frag += `<span class="ms-meteor${deep ? " deep" : ""}" style="left:${x}%;top:${y}%;width:${len}px;height:${thick}px;--angle:${angle}deg;--dist:${dist};animation-duration:${dur}s;animation-delay:${delay}s"></span>`;
+        }
+        wrap.insertAdjacentHTML("beforeend", frag);
+
+        wrap.classList.remove("show");
+        void wrap.offsetWidth; // 强制回流重启动画
+        wrap.classList.add("show");
+        setTimeout(() => wrap.classList.remove("show"), 3200);
+        setTimeout(() => wrap.querySelectorAll(".ms-meteor, .ms-star").forEach(m => m.remove()), 3800);
+    }
+
     function playCompleteFlash() {
         let flash = document.getElementById("complete-flash");
         if (!flash) {
