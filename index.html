@@ -3622,7 +3622,7 @@
             const ctx = c.getContext("2d");
             const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
             grad.addColorStop(0, "rgba(255,255,255,1)");
-            grad.addColorStop(0.3, "rgba(255,255,255,0.5)");
+            grad.addColorStop(0.45, "rgba(255,255,255,0.35)");
             grad.addColorStop(1, "rgba(255,255,255,0)");
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, 64, 64);
@@ -3689,11 +3689,12 @@
                     map: glowTex,
                     color,
                     transparent: true,
-                    opacity: 0.55,
+                    opacity: 0.4,
                     blending: THREE.AdditiveBlending,
                     depthWrite: false,
                 }));
-                glow.scale.set(size * 7, size * 7, 1);
+                // 紧致柔边: 只比核心略大一圈, 不形成大光圈
+                glow.scale.set(size * 2.2, size * 2.2, 1);
                 g.add(glow);
                 g.add(core);
                 g.position.set(x, y, 0.05);
