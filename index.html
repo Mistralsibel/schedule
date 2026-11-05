@@ -3659,16 +3659,23 @@
             const countEl = document.getElementById("orbit-count");
             if (countEl) countEl.textContent = `今日 ${todayTasks.length} 项 · 已完成 ${doneCount} 项`;
 
-            // 同一小时多个任务沿轨道错开, 避免重叠成一个点
-            const hourSeen = {};
-            const OFF_DEG = [0, 5, -5, 8, -8, 2.5, -2.5];
-            todayTasks.forEach(task => {
+            // 按时间排序放置; 相邻颗粒间距不足 15° 时沿轨道顺移错开, 避免挤成一团
+            const sorted = [...todayTasks].sort((a, b) => new Date(a.start) - new Date(b.start));
+            const MIN_GAP = 15 * Math.PI / 180;
+            const placed = [];
+            const angDist = (a, b) => {
+                const d = Math.abs(a - b) % (Math.PI * 2);
+                return d > Math.PI ? Math.PI * 2 - d : d;
+            };
+            sorted.forEach(task => {
                 const s = new Date(task.start);
-                const hourKey = s.getHours();
-                const k = hourSeen[hourKey] = (hourSeen[hourKey] || 0) + 1;
-                const deg = OFF_DEG[(k - 1) % OFF_DEG.length] || 0;
-                // 位置精确到分钟 (之前只取小时, 同小时任务完全重叠)
-                const rad = ((s.getHours() + s.getMinutes() / 60) / 24) * Math.PI * 2 + deg * Math.PI / 180;
+                // 位置精确到分钟, 冲突时顺移寻找空位
+                let rad = ((s.getHours() + s.getMinutes() / 60) / 24) * Math.PI * 2;
+                for (let tries = 0; tries < 40; tries++) {
+                    if (placed.every(p => angDist(p, rad) >= MIN_GAP)) break;
+                    rad = (rad + MIN_GAP * 0.5) % (Math.PI * 2);
+                }
+                placed.push(rad);
                 const r = 1.775;
                 const x = Math.cos(rad) * r;
                 const y = Math.sin(rad) * r;
