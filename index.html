@@ -2497,9 +2497,8 @@
         "向着光亮那方，慢慢走"
     ];
 
-    // 问候语/树状态在常量区之后初始化 (避免 TDZ)
+    // 问候语在常量区之后初始化 (避免 TDZ)
     setGreeting();
-    updateTreeStageText();
 
     function getGreeting() {
         const now = new Date();
@@ -2556,6 +2555,8 @@
 
     // ---- 任务数据 ----
     let taskList = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    // 树状态文案依赖 taskList, 必须在其声明之后初始化
+    updateTreeStageText();
     let currentView = "day";
     let currentFilter = "all";
     let editTaskId = null;
