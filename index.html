@@ -3727,8 +3727,8 @@
             requestAnimationFrame(animateOrbit);
             const t = performance.now();
             // 轨道与任务点同步转动 (点保持在对应时刻的位置上)
-            ring.rotation.z += 0.004;
-            pointGroup.rotation.z += 0.004;
+            ring.rotation.z += 0.0025;
+            pointGroup.rotation.z += 0.0025;
             // 流光弧以更快速度掠过
             sweep.rotation.z += 0.012;
             // 任务点: 入场弹入; 进行中任务只做光晕慢呼吸 (核心不缩放, 宁静感)
