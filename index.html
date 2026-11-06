@@ -4266,32 +4266,47 @@
         updateTreeStageText();
     }
 
-    // 单朵花: 5 片向上翘起的花瓣 + 金色花心 (颜色按任务类型)
-    function makeFlower(size, colorHex) {
-        const g = new THREE.Group();
-        const petalGeo = new THREE.SphereGeometry(0.085 * size, 8, 8);
-        const petalMat = new THREE.MeshBasicMaterial({
-            color: colorHex,
-            transparent: true, opacity: 0.95, depthWrite: false, depthTest: true,
-        });
-        for (let i = 0; i < 5; i++) {
-            const holder = new THREE.Group();
-            const petal = new THREE.Mesh(petalGeo, petalMat);
-            petal.scale.set(1.4, 0.28, 0.62); // 圆润小巧的花瓣
-            petal.position.set(0.08 * size, 0, 0);
-            holder.rotation.z = 0.32; // 花瓣向上翘起
-            holder.rotation.y = (i / 5) * Math.PI * 2;
-            holder.add(petal);
-            g.add(holder);
-            petal.renderOrder = 6;
+    // 程序绘制花朵贴图: 5 片花瓣 + 金心, 圆润可爱
+    const flowerTexCache = {};
+
+    function getFlowerTexture(colorHex) {
+        const key = String(colorHex);
+        if (!flowerTexCache[key]) {
+            const c = document.createElement("canvas");
+            c.width = c.height = 64;
+            const ctx = c.getContext("2d");
+            const color = "#" + new THREE.Color(colorHex).getHexString();
+            ctx.translate(32, 32);
+            for (let i = 0; i < 5; i++) {
+                ctx.rotate(Math.PI * 2 / 5);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.ellipse(0, -14, 7, 11, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.fillStyle = "#FFD97A";
+            ctx.beginPath();
+            ctx.arc(0, 0, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#FFE9B0";
+            ctx.beginPath();
+            ctx.arc(-2, -2, 3, 0, Math.PI * 2);
+            ctx.fill();
+            flowerTexCache[key] = new THREE.CanvasTexture(c);
         }
-        const center = new THREE.Mesh(
-            new THREE.SphereGeometry(0.045 * size, 6, 6),
-            new THREE.MeshBasicMaterial({ color: 0xFFD97A, depthWrite: false, depthTest: true })
-        );
-        center.renderOrder = 6;
-        g.add(center);
-        return g;
+        return flowerTexCache[key];
+    }
+
+    // 单朵花: 公告板精灵 (永远正面朝向相机, 任何角度完整可见)
+    function makeFlower(size, colorHex) {
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: getFlowerTexture(colorHex),
+            transparent: true,
+            depthWrite: false,
+            depthTest: true,
+        }));
+        sprite.scale.set(size, size, 1);
+        return sprite;
     }
 
     // 花朵柔色 (按任务类型, 与果实色系呼应)
@@ -4311,17 +4326,30 @@
     // 开花同步: 每个今日完成任务对应一朵花, 开在果实原位
     // 已有花保持不变(不重放绽放), 新完成任务才开新花
     function syncBloomFlowers(placements) {
-        const { flowerGroup } = wishTreeState;
+        const { flowerGroup, canopy, leafGroup } = wishTreeState;
         if (!flowerGroup) return;
         const wanted = new Set(placements.map(p => p.task.id));
         [...flowerGroup.children].forEach(f => {
             if (!wanted.has(f.userData.taskId)) flowerGroup.remove(f);
         });
         const existingIds = new Set(flowerGroup.children.map(f => f.userData.taskId));
+        const leafScale = leafGroup ? leafGroup.scale.x : 1;
         placements.forEach((p, i) => {
             if (existingIds.has(p.task.id)) return;
-            const flower = makeFlower(1.1 + Math.random() * 0.5, flowerColorFor(p.task.type));
-            flower.position.set(p.pos.x, p.pos.y, p.pos.z);
+            const flower = makeFlower(0.62 + Math.random() * 0.18, flowerColorFor(p.task.type));
+            // 花朵置于所属树冠球表面之上: 按几何计算表面高度再抬高,
+            // 精灵永远朝向相机, 花冠完整可见 (果实原位在树冠内部, 直接使用会被埋没)
+            let surfY = p.pos.y;
+            if (canopy && canopy.length) {
+                let best = canopy[0], bd = Infinity;
+                canopy.forEach(b => {
+                    const dd = (p.pos.x - b.x) * (p.pos.x - b.x) + (p.pos.z - b.z) * (p.pos.z - b.z);
+                    if (dd < bd) { bd = dd; best = b; }
+                });
+                const d = Math.sqrt(bd);
+                surfY = leafScale * Math.sqrt(Math.max(0.02, best.r * best.r - d * d)) + 0.3;
+            }
+            flower.position.set(p.pos.x, surfY, p.pos.z);
             flower.userData.taskId = p.task.id;
             flower.userData.born = performance.now() + i * 90;
             flower.scale.setScalar(0.01);
