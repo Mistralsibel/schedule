@@ -4268,11 +4268,13 @@
             holder.rotation.y = (i / 5) * Math.PI * 2;
             holder.add(petal);
             g.add(holder);
+            petal.renderOrder = 6; // 花朵必须渲染在果实(5)与树叶(1)之上
         }
         const center = new THREE.Mesh(
             new THREE.SphereGeometry(0.042 * size, 6, 6),
             new THREE.MeshBasicMaterial({ color: 0xFFD97A, depthWrite: false, depthTest: false })
         );
+        center.renderOrder = 6;
         g.add(center);
         return g;
     }
