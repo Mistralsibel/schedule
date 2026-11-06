@@ -2505,7 +2505,11 @@
     updateStreakText();
 
     function getGreeting() {
-        const h = new Date().getHours();
+        const now = new Date();
+        // 周末优先: 工作日程的休息日问候
+        if (now.getDay() === 6) return "周六愉快，今天不属于工作";
+        if (now.getDay() === 0) return "周日愉快，给灵树也放个假";
+        const h = now.getHours();
         if (h >= 5 && h < 9) return GREETINGS[0];
         if (h >= 9 && h < 12) return GREETINGS[1];
         if (h >= 12 && h < 14) return GREETINGS[2];
@@ -2575,6 +2579,17 @@
         const m = String(d.getMonth() + 1).padStart(2, "0");
         const day = String(d.getDate()).padStart(2, "0");
         return `${d.getFullYear()}-${m}-${day}`;
+    }
+
+    // 工作日判断 (周六周日不算; 打卡/断签只按工作日计算)
+    function isWorkday(d) {
+        const dow = d.getDay();
+        return dow !== 0 && dow !== 6;
+    }
+
+    function parseDateStr(s) {
+        const [y, m, d] = s.split("-").map(Number);
+        return new Date(y, m - 1, d);
     }
 
     // datetime-local 输入框格式 (本地时间)
@@ -2698,9 +2713,12 @@
 
         if (filterTasks.length === 0) {
             const allCount = taskList.length;
+            const isWeekendNow = !isWorkday(new Date());
             const tipText = allCount === 0
                 ? "暂无日程，点击左侧「+ 新建日程」开始规划"
-                : (currentView === "day" ? "今日暂无安排，切换「本周总览」查看" : "当前视图暂无匹配日程");
+                : (currentView === "day"
+                    ? (isWeekendNow ? "周末休息日，暂无安排，好好放松～" : "今日暂无安排，切换「本周总览」查看")
+                    : "当前视图暂无匹配日程");
             wrap.innerHTML = `
             <div class="empty-state">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
@@ -2835,12 +2853,22 @@
         return todayTasks.length > 0 && todayTasks.every(t => t.done);
     }
 
-    // ---- 连续打卡: 灵树成长 ----
+    // ---- 连续打卡: 灵树成长 (只按工作日计算, 周末不断签) ----
     function bumpStreak() {
-        const todayStr = getLocalDateStr();
-        const yestStr = getLocalDateStr(new Date(Date.now() - 24 * 3600 * 1000));
+        const now = new Date();
+        const todayStr = getLocalDateStr(now);
         if (userInfo.lastStreakDate === todayStr) return;
-        userInfo.streakDays = (userInfo.lastStreakDate === yestStr ? (userInfo.streakDays || 0) + 1 : 1);
+        // 上次打卡与今天之间若只有周末 → 连续; 若隔了工作日 → 重新开始
+        let consecutive = false;
+        if (userInfo.lastStreakDate) {
+            consecutive = true;
+            const cursor = new Date(parseDateStr(userInfo.lastStreakDate).getTime() + 24 * 3600 * 1000);
+            while (getLocalDateStr(cursor) < todayStr) {
+                if (isWorkday(cursor)) { consecutive = false; break; }
+                cursor.setTime(cursor.getTime() + 24 * 3600 * 1000);
+            }
+        }
+        userInfo.streakDays = consecutive ? (userInfo.streakDays || 0) + 1 : 1;
         userInfo.lastStreakDate = todayStr;
         saveUserInfo();
         if (typeof window.refreshTreeStage === "function") window.refreshTreeStage();
@@ -2848,10 +2876,17 @@
 
     function checkStreakOnLoad() {
         const todayStr = getLocalDateStr();
-        const yestStr = getLocalDateStr(new Date(Date.now() - 24 * 3600 * 1000));
         const last = userInfo.lastStreakDate;
-        if (!last || last === todayStr || last === yestStr) return;
-        // 中断一天以上: 回到上一成长阶段 (不直接清零)
+        if (!last || last === todayStr) return;
+        // 上次打卡到今天之间, 只要有一个被跳过的"工作日"才算中断
+        let missedWorkday = false;
+        const cursor = new Date(parseDateStr(last).getTime() + 24 * 3600 * 1000);
+        while (getLocalDateStr(cursor) < todayStr) {
+            if (isWorkday(cursor)) { missedWorkday = true; break; }
+            cursor.setTime(cursor.getTime() + 24 * 3600 * 1000);
+        }
+        if (!missedWorkday) return; // 中间只有周末, 不断签
+        // 中断: 回到上一成长阶段 (不直接清零)
         const stages = [0, 3, 7, 14];
         const s = userInfo.streakDays || 0;
         let stage = 0;
@@ -3134,6 +3169,7 @@
                 name, i, dayStr, tasks,
                 done: tasks.filter(t => t.done).length,
                 isToday: dayStr === todayStr,
+                isWeekend: !isWorkday(day),
                 rowEl: null, bodyEl: null
             };
         });
@@ -3191,7 +3227,7 @@
 
             if (d.tasks.length === 0) {
                 const empty = svgEl("text", { x: 60, y: 96, "text-anchor": "middle", "class": "garden-empty" });
-                empty.textContent = "当日暂无安排";
+                empty.textContent = d.isWeekend ? "周末休息" : "当日暂无安排";
                 svg.appendChild(empty);
             } else {
                 const hourSeen = {};
@@ -3288,7 +3324,7 @@
             const body = document.createElement("div");
             body.className = "stat-day-body";
             if (d.tasks.length === 0) {
-                body.innerHTML = `<div class="stat-day-empty">当日暂无安排</div>`;
+                body.innerHTML = `<div class="stat-day-empty">${d.isWeekend ? "周末休息，好好放松～" : "当日暂无安排"}</div>`;
             } else {
                 d.tasks.forEach(t => {
                     const item = document.createElement("div");
