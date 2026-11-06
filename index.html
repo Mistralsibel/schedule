@@ -4089,8 +4089,9 @@
             });
         }
 
-        // 今日无完成 → 枯枝败叶，飘落枯叶
+        // 今日无完成 → 枯枝败叶，飘落枯叶 (花也一并凋谢)
         if (isWither) {
+            clearFlowers();
             for (let i = 0; i < 25; i++) {
                 const fallGeo = new THREE.CircleGeometry(0.12, 6);
                 const fallMat = new THREE.MeshBasicMaterial({
@@ -4190,6 +4191,17 @@
             return p;
         }
 
+        // 开花阶段: 每个今日完成任务在果实原位开一朵花 (花与果不同框)
+        if (getTreeStage() >= 3) {
+            const placements = todayDone.map(task => ({
+                task,
+                pos: pickPosition()
+            }));
+            syncBloomFlowers(placements);
+            return;
+        }
+        clearFlowers();
+
         todayDone.forEach((task) => {
             const colorHex = pickBestColor(task.type);
             const fruitColor = new THREE.Color(colorHex);
@@ -4251,21 +4263,15 @@
             trunk.scale.set(1.12, 1.3, 1.12);
             leafGroup.scale.setScalar(1.35);
         }
-        // 花朵只在阶段变化时重建 (避免每次操作任务都重新绽放)
-        if (wishTreeState.flowerStage !== stage) {
-            wishTreeState.flowerStage = stage;
-            rebuildFlowers(stage >= 3);
-        }
         updateTreeStageText();
     }
 
-    // 单朵花: 5 片向上翘起的花瓣 + 金色花心
-    function makeFlower(size) {
+    // 单朵花: 5 片向上翘起的花瓣 + 金色花心 (颜色按任务类型)
+    function makeFlower(size, colorHex) {
         const g = new THREE.Group();
         const petalGeo = new THREE.SphereGeometry(0.085 * size, 8, 8);
         const petalMat = new THREE.MeshBasicMaterial({
-            // 深浅两档玫瑰粉, 亮/暗背景都清晰可见 (弃用近白色)
-            color: Math.random() < 0.5 ? 0xF7B6D0 : 0xEC94BA,
+            color: colorHex,
             transparent: true, opacity: 0.95, depthWrite: false, depthTest: true,
         });
         for (let i = 0; i < 5; i++) {
@@ -4288,31 +4294,38 @@
         return g;
     }
 
-    // 满树花朵: 散布在四个树冠球的表面各处
-    function rebuildFlowers(bloom) {
-        const { flowerGroup, canopy, leafGroup } = wishTreeState;
+    // 花朵柔色 (按任务类型, 与果实色系呼应)
+    const FLOWER_COLORS = { work: 0xF7B6D0, study: 0xD9A8E8, life: 0xF7C9A8 };
+
+    function flowerColorFor(type) {
+        return FLOWER_COLORS[type] || 0xF7B6D0;
+    }
+
+    // 清空花朵 (凋谢/退回结果阶段)
+    function clearFlowers() {
+        const { flowerGroup } = wishTreeState;
         if (!flowerGroup) return;
         while (flowerGroup.children.length) flowerGroup.remove(flowerGroup.children[0]);
-        if (!bloom || !canopy) return;
-        const canopyScale = leafGroup ? leafGroup.scale.x : 1;
-        let idx = 0;
-        canopy.forEach(blob => {
-            const count = 2 + Math.floor(Math.random() * 2); // 每个树冠 2~3 朵, 点缀不抢戏
-            for (let i = 0; i < count; i++) {
-                const ang = Math.random() * Math.PI * 2;
-                const rr = blob.r * (0.5 + Math.random() * 0.3);
-                const flower = makeFlower(1.2 + Math.random() * 0.6);
-                flower.position.set(
-                    (blob.x + Math.cos(ang) * rr) * canopyScale,
-                    // 位置靠下: 半埋于树冠中上部, 花从叶间探出
-                    blob.r * (0.4 + Math.random() * 0.45) * canopyScale,
-                    (blob.z + Math.sin(ang) * rr) * canopyScale
-                );
-                flower.userData.born = performance.now() + idx * 90;
-                flower.scale.setScalar(0.01);
-                flowerGroup.add(flower);
-                idx++;
-            }
+    }
+
+    // 开花同步: 每个今日完成任务对应一朵花, 开在果实原位
+    // 已有花保持不变(不重放绽放), 新完成任务才开新花
+    function syncBloomFlowers(placements) {
+        const { flowerGroup } = wishTreeState;
+        if (!flowerGroup) return;
+        const wanted = new Set(placements.map(p => p.task.id));
+        [...flowerGroup.children].forEach(f => {
+            if (!wanted.has(f.userData.taskId)) flowerGroup.remove(f);
+        });
+        const existingIds = new Set(flowerGroup.children.map(f => f.userData.taskId));
+        placements.forEach((p, i) => {
+            if (existingIds.has(p.task.id)) return;
+            const flower = makeFlower(1.1 + Math.random() * 0.5, flowerColorFor(p.task.type));
+            flower.position.set(p.pos.x, p.pos.y, p.pos.z);
+            flower.userData.taskId = p.task.id;
+            flower.userData.born = performance.now() + i * 90;
+            flower.scale.setScalar(0.01);
+            flowerGroup.add(flower);
         });
     }
 
