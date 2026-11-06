@@ -4250,9 +4250,18 @@
         const el = document.getElementById("tree-streak");
         if (!el) return;
         const s = userInfo.streakDays || 0;
-        el.textContent = s > 0
-            ? `连续完成 ${s} 天 · 灵树${TREE_STAGE_NAMES[getTreeStage()]}中`
-            : "连续完成每日任务，灵树将逐渐长大";
+        if (s <= 0) {
+            el.textContent = "连续完成每日任务，灵树将逐渐长大";
+            return;
+        }
+        const stages = [0, 3, 7, 14];
+        const stage = getTreeStage();
+        if (stage >= 3) {
+            el.textContent = `连续完成 ${s} 天 · 灵树盛放中 🌸`;
+        } else {
+            const remain = stages[stage + 1] - s;
+            el.textContent = `连续完成 ${s} 天 · ${TREE_STAGE_NAMES[stage]}中 · 距${TREE_STAGE_NAMES[stage + 1]}还差 ${remain} 天`;
+        }
     }
 
     window.refreshTreeStage = function () {
