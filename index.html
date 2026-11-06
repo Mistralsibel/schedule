@@ -2456,17 +2456,15 @@
     const STORAGE_KEY = "chrono-task-data";
     const USER_STORAGE = "chrono-user-info";
     const THEME_KEY = "chrono-theme";
-    // 灵树成长阶段名 (初始化早期即被引用, 必须置于脚本最前部)
-    const TREE_STAGE_NAMES = ["幼苗", "成长", "开花", "盛放"];
+    // 灵树成长阶段名 (按本周完成任务数驱动, 初始化早期即被引用)
+    const TREE_STAGE_NAMES = ["幼苗", "成长", "参天大树", "开花"];
 
     // ---- 用户信息 ----
     let userInfo = JSON.parse(localStorage.getItem(USER_STORAGE)) || {
         name: "Chrono 日程",
         motto: "",
         lastTaskDate: Date.now(),
-        completeCount: 0,
-        streakDays: 0,
-        lastStreakDate: null
+        completeCount: 0
     };
 
     document.getElementById("user-name-display").innerText = userInfo.name;
@@ -2499,10 +2497,9 @@
         "向着光亮那方，慢慢走"
     ];
 
-    // 问候语/打卡检查在常量区之后初始化 (避免 TDZ)
+    // 问候语/树状态在常量区之后初始化 (避免 TDZ)
     setGreeting();
-    checkStreakOnLoad();
-    updateStreakText();
+    updateTreeStageText();
 
     function getGreeting() {
         const now = new Date();
@@ -2581,15 +2578,10 @@
         return `${d.getFullYear()}-${m}-${day}`;
     }
 
-    // 工作日判断 (周六周日不算; 打卡/断签只按工作日计算)
+    // 工作日判断 (周六周日不算工作日)
     function isWorkday(d) {
         const dow = d.getDay();
         return dow !== 0 && dow !== 6;
-    }
-
-    function parseDateStr(s) {
-        const [y, m, d] = s.split("-").map(Number);
-        return new Date(y, m - 1, d);
     }
 
     // datetime-local 输入框格式 (本地时间)
@@ -2812,7 +2804,6 @@
                 if (allDone) {
                     playMeteorShower();
                     playArpeggio();
-                    bumpStreak();
                 } else {
                     playCompleteFlash();
                     playChime();
@@ -2853,47 +2844,16 @@
         return todayTasks.length > 0 && todayTasks.every(t => t.done);
     }
 
-    // ---- 连续打卡: 灵树成长 (只按工作日计算, 周末不断签) ----
-    function bumpStreak() {
-        const now = new Date();
-        const todayStr = getLocalDateStr(now);
-        if (userInfo.lastStreakDate === todayStr) return;
-        // 上次打卡与今天之间若只有周末 → 连续; 若隔了工作日 → 重新开始
-        let consecutive = false;
-        if (userInfo.lastStreakDate) {
-            consecutive = true;
-            const cursor = new Date(parseDateStr(userInfo.lastStreakDate).getTime() + 24 * 3600 * 1000);
-            while (getLocalDateStr(cursor) < todayStr) {
-                if (isWorkday(cursor)) { consecutive = false; break; }
-                cursor.setTime(cursor.getTime() + 24 * 3600 * 1000);
-            }
-        }
-        userInfo.streakDays = consecutive ? (userInfo.streakDays || 0) + 1 : 1;
-        userInfo.lastStreakDate = todayStr;
-        saveUserInfo();
-        if (typeof window.refreshTreeStage === "function") window.refreshTreeStage();
-    }
-
-    function checkStreakOnLoad() {
-        const todayStr = getLocalDateStr();
-        const last = userInfo.lastStreakDate;
-        if (!last || last === todayStr) return;
-        // 上次打卡到今天之间, 只要有一个被跳过的"工作日"才算中断
-        let missedWorkday = false;
-        const cursor = new Date(parseDateStr(last).getTime() + 24 * 3600 * 1000);
-        while (getLocalDateStr(cursor) < todayStr) {
-            if (isWorkday(cursor)) { missedWorkday = true; break; }
-            cursor.setTime(cursor.getTime() + 24 * 3600 * 1000);
-        }
-        if (!missedWorkday) return; // 中间只有周末, 不断签
-        // 中断: 回到上一成长阶段 (不直接清零)
-        const stages = [0, 3, 7, 14];
-        const s = userInfo.streakDays || 0;
-        let stage = 0;
-        for (let i = 0; i < stages.length; i++) if (s >= stages[i]) stage = i;
-        userInfo.streakDays = stage === 0 ? 0 : stages[stage - 1];
-        userInfo.lastStreakDate = null;
-        saveUserInfo();
+    // ---- 本周已完成任务数 (灵树成长依据) ----
+    function getWeeklyDoneCount() {
+        const { weekStart, weekEnd } = getWeekRange();
+        return taskList
+            .filter(t => t.done && t.completedAt)
+            .filter(t => {
+                const c = new Date(t.completedAt);
+                return c >= weekStart && c < weekEnd;
+            })
+            .length;
     }
 
     // ---- 全部完成: 蓝黑流星雨 (程序化生成, 无需外部素材) ----
@@ -4035,9 +3995,8 @@
         branchGroup.add(flowerGroup);
         wishTreeState.flowerGroup = flowerGroup;
 
-        // 根据今日完成情况初始化果实
+        // 根据今日完成情况初始化果实 (内含成长阶段应用)
         rebuildFruits();
-        applyTreeStage(getTreeStage());
 
         window.addEventListener("resize", () => {
             const w = canvas.clientWidth;
@@ -4081,6 +4040,9 @@
     function rebuildFruits() {
         const { branchGroup, fruitPool, leafFallArr, scene } = wishTreeState;
         if (!branchGroup) return;
+
+        // 成长阶段跟随本周完成数同步更新 (完成/撤销/删除都会经过这里)
+        applyTreeStage(getTreeStage());
 
         // 清除旧果实（Group 包含主体+光晕两个子 Mesh）
         while (fruitPool.length > 0) {
@@ -4248,26 +4210,35 @@
     // 暴露全局刷新接口
     window.refreshWishTree = rebuildFruits;
 
-    // ---- 灵树成长阶段 (连续打卡) ----
+    // ---- 灵树成长阶段 (按本周完成任务数) ----
     function getTreeStage() {
-        const s = userInfo.streakDays || 0;
-        if (s >= 14) return 3;
-        if (s >= 7) return 2;
-        if (s >= 3) return 1;
-        return 0;
+        const c = getWeeklyDoneCount();
+        if (c >= 15) return 3; // 开花
+        if (c >= 8) return 2;  // 参天大树
+        if (c >= 3) return 1;  // 成长
+        return 0;              // 幼苗
     }
 
     function applyTreeStage(stage) {
         const { trunk, leafGroup, flowerGroup } = wishTreeState;
         if (!trunk || !leafGroup) return;
-        trunk.scale.set(1, stage === 0 ? 0.62 : 1, 1);
-        leafGroup.scale.setScalar(stage === 0 ? 0.6 : stage >= 2 ? 1.1 : 1);
+        // 0 幼苗: 矮小; 1 成长: 默认; 2/3 参天大树: 高大茂盛
+        if (stage === 0) {
+            trunk.scale.set(0.8, 0.62, 0.8);
+            leafGroup.scale.setScalar(0.6);
+        } else if (stage === 1) {
+            trunk.scale.set(1, 1, 1);
+            leafGroup.scale.setScalar(1);
+        } else {
+            trunk.scale.set(1.12, 1.3, 1.12);
+            leafGroup.scale.setScalar(1.35);
+        }
         while (flowerGroup.children.length) flowerGroup.remove(flowerGroup.children[0]);
-        if (stage >= 2) {
-            const count = stage >= 3 ? 12 : 6;
-            for (let i = 0; i < count; i++) {
+        // 开花阶段: 满树花朵
+        if (stage >= 3) {
+            for (let i = 0; i < 14; i++) {
                 const ang = Math.random() * Math.PI * 2;
-                const rad = 0.55 + Math.random() * 0.75;
+                const rad = 0.6 + Math.random() * 0.85;
                 const flower = new THREE.Mesh(
                     new THREE.SphereGeometry(0.07 + Math.random() * 0.04, 8, 8),
                     new THREE.MeshBasicMaterial({
@@ -4279,24 +4250,24 @@
                 flowerGroup.add(flower);
             }
         }
-        updateStreakText();
+        updateTreeStageText();
     }
 
-    function updateStreakText() {
+    function updateTreeStageText() {
         const el = document.getElementById("tree-streak");
         if (!el) return;
-        const s = userInfo.streakDays || 0;
-        if (s <= 0) {
-            el.textContent = "连续完成每日任务，灵树将逐渐长大";
+        const c = getWeeklyDoneCount();
+        const thresholds = [0, 3, 8, 15];
+        const stage = getTreeStage();
+        if (c <= 0) {
+            el.textContent = "本周每完成 3 项任务，灵树就长大一次";
             return;
         }
-        const stages = [0, 3, 7, 14];
-        const stage = getTreeStage();
         if (stage >= 3) {
-            el.textContent = `连续完成 ${s} 天 · 灵树盛放中 🌸`;
+            el.textContent = `本周已完成 ${c} 项 · 灵树开花了 🌸`;
         } else {
-            const remain = stages[stage + 1] - s;
-            el.textContent = `连续完成 ${s} 天 · ${TREE_STAGE_NAMES[stage]}中 · 距${TREE_STAGE_NAMES[stage + 1]}还差 ${remain} 天`;
+            const remain = thresholds[stage + 1] - c;
+            el.textContent = `本周已完成 ${c} 项 · ${TREE_STAGE_NAMES[stage]} · 再完成 ${remain} 项进入「${TREE_STAGE_NAMES[stage + 1]}」`;
         }
     }
 
