@@ -1473,6 +1473,43 @@
             animation: tipFloat 3.5s infinite ease-in-out;
         }
 
+        .tree-streak {
+            position: absolute;
+            bottom: 54px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .greeting-line {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-top: 10px;
+            animation: greetIn 0.8s var(--ease-out-expo) both;
+        }
+
+        .greet-main {
+            font-size: 14px;
+            color: var(--text-primary);
+            letter-spacing: 0.04em;
+        }
+
+        .greet-poem {
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+        }
+
+        @keyframes greetIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         @keyframes tipFloat {
             0%,
             100% {
@@ -2234,6 +2271,7 @@
         <div class="motto-wrap">
             <input class="motto-input" id="user-motto" placeholder="写下今日寄语，为自己打气～">
             <p id="motto-warn-text" style="color:#CC8A8A; font-size:12px; margin-top:5px; display:none;">寄语不能超过15个字！</p>
+            <div class="greeting-line" id="greeting-line"></div>
         </div>
     </div>
 
@@ -2296,6 +2334,7 @@
 <div class="wish-tree-wrap">
     <canvas id="tree-canvas"></canvas>
     <div class="tree-tip">每完成一项任务，灵树便会结出发光果实</div>
+    <div class="tree-streak" id="tree-streak"></div>
 </div>
 
 <!-- ====== 品牌标识 (右下角) ====== -->
@@ -2417,13 +2456,17 @@
     const STORAGE_KEY = "chrono-task-data";
     const USER_STORAGE = "chrono-user-info";
     const THEME_KEY = "chrono-theme";
+    // 灵树成长阶段名 (初始化早期即被引用, 必须置于脚本最前部)
+    const TREE_STAGE_NAMES = ["幼苗", "成长", "开花", "盛放"];
 
     // ---- 用户信息 ----
     let userInfo = JSON.parse(localStorage.getItem(USER_STORAGE)) || {
         name: "Chrono 日程",
         motto: "",
         lastTaskDate: Date.now(),
-        completeCount: 0
+        completeCount: 0,
+        streakDays: 0,
+        lastStreakDate: null
     };
 
     document.getElementById("user-name-display").innerText = userInfo.name;
@@ -2431,6 +2474,52 @@
 
     function saveUserInfo() {
         localStorage.setItem(USER_STORAGE, JSON.stringify(userInfo));
+    }
+
+    // ---- 时间问候 + 随机寄语 ----
+    const GREETINGS = [
+        "早安，今天的星光属于你",
+        "上午好，愿你的每一刻都闪闪发光",
+        "午后好，给自己一杯茶的时间",
+        "下午好，再坚持一下，果实就熟了",
+        "傍晚好，晚风正温柔",
+        "晚上好，星光正在赶来",
+        "夜深了，别忘了和灵树说晚安"
+    ];
+    const POEMS = [
+        "把今天过成一首诗",
+        "星光不负赶路人",
+        "慢慢来，果实会熟",
+        "每一次完成，都是一次绽放",
+        "时间是你的花园",
+        "心怀热望，脚步生风",
+        "宁静致远，行稳致远",
+        "今日份的浪漫，正在加载",
+        "你认真生活的样子，闪闪发光",
+        "向着光亮那方，慢慢走"
+    ];
+
+    // 问候语/打卡检查在常量区之后初始化 (避免 TDZ)
+    setGreeting();
+    checkStreakOnLoad();
+    updateStreakText();
+
+    function getGreeting() {
+        const h = new Date().getHours();
+        if (h >= 5 && h < 9) return GREETINGS[0];
+        if (h >= 9 && h < 12) return GREETINGS[1];
+        if (h >= 12 && h < 14) return GREETINGS[2];
+        if (h >= 14 && h < 18) return GREETINGS[3];
+        if (h >= 18 && h < 20) return GREETINGS[4];
+        if (h >= 20 && h < 23) return GREETINGS[5];
+        return GREETINGS[6];
+    }
+
+    function setGreeting() {
+        const el = document.getElementById("greeting-line");
+        if (!el) return;
+        const poem = POEMS[Math.floor(Math.random() * POEMS.length)];
+        el.innerHTML = `<span class="greet-main">${getGreeting()}</span><span class="greet-poem">${poem}</span>`;
     }
 
     // ---- 昵称弹窗 ----
@@ -2702,8 +2791,14 @@
             if (task.done && !wasDone) {
                 card.classList.add("task-complete-flash");
                 setTimeout(() => card.classList.remove("task-complete-flash"), 650);
-                if (allDone) playMeteorShower();
-                else playCompleteFlash();
+                if (allDone) {
+                    playMeteorShower();
+                    playArpeggio();
+                    bumpStreak();
+                } else {
+                    playCompleteFlash();
+                    playChime();
+                }
             }
             saveStorage();
             // 完成/撤销都刷新灵树（果实与今日完成任务同步）
@@ -2738,6 +2833,32 @@
             return s < dayEnd && e > dayStart;
         });
         return todayTasks.length > 0 && todayTasks.every(t => t.done);
+    }
+
+    // ---- 连续打卡: 灵树成长 ----
+    function bumpStreak() {
+        const todayStr = getLocalDateStr();
+        const yestStr = getLocalDateStr(new Date(Date.now() - 24 * 3600 * 1000));
+        if (userInfo.lastStreakDate === todayStr) return;
+        userInfo.streakDays = (userInfo.lastStreakDate === yestStr ? (userInfo.streakDays || 0) + 1 : 1);
+        userInfo.lastStreakDate = todayStr;
+        saveUserInfo();
+        if (typeof window.refreshTreeStage === "function") window.refreshTreeStage();
+    }
+
+    function checkStreakOnLoad() {
+        const todayStr = getLocalDateStr();
+        const yestStr = getLocalDateStr(new Date(Date.now() - 24 * 3600 * 1000));
+        const last = userInfo.lastStreakDate;
+        if (!last || last === todayStr || last === yestStr) return;
+        // 中断一天以上: 回到上一成长阶段 (不直接清零)
+        const stages = [0, 3, 7, 14];
+        const s = userInfo.streakDays || 0;
+        let stage = 0;
+        for (let i = 0; i < stages.length; i++) if (s >= stages[i]) stage = i;
+        userInfo.streakDays = stage === 0 ? 0 : stages[stage - 1];
+        userInfo.lastStreakDate = null;
+        saveUserInfo();
     }
 
     // ---- 全部完成: 蓝黑流星雨 (程序化生成, 无需外部素材) ----
@@ -2785,6 +2906,59 @@
         wrap.classList.add("show");
         setTimeout(() => wrap.classList.remove("show"), 2400);
         setTimeout(() => wrap.querySelectorAll(".ms-meteor, .ms-star").forEach(m => m.remove()), 3000);
+    }
+
+    // ---- 完成音效 (WebAudio 合成, 无需音频文件) ----
+    let audioCtx = null;
+
+    function ensureAudioCtx() {
+        if (!audioCtx) {
+            try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+        }
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        return audioCtx;
+    }
+
+    function chimeNote(ctx, freq, startTime, dur, gain) {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, startTime);
+        g.gain.setValueAtTime(0, startTime);
+        g.gain.linearRampToValueAtTime(gain, startTime + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, startTime + dur);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + dur + 0.05);
+    }
+
+    // 单次完成: 清透风铃 (昼夜不同调)
+    function playChime() {
+        const ctx = ensureAudioCtx();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        const night = getCurrentTheme() === "dark";
+        const notes = night ? [659.25, 783.99, 987.77] : [1318.51, 1567.98, 1975.53];
+        notes.forEach((f, i) => {
+            chimeNote(ctx, f, t + i * 0.06, 1.4, 0.10);
+            chimeNote(ctx, f * 2, t + i * 0.06, 0.7, 0.03);
+        });
+    }
+
+    // 全部完成: 流星雨琶音
+    function playArpeggio() {
+        const ctx = ensureAudioCtx();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        const night = getCurrentTheme() === "dark";
+        const seq = night
+            ? [392, 493.88, 587.33, 783.99, 987.77, 1174.66]
+            : [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98];
+        seq.forEach((f, i) => {
+            chimeNote(ctx, f, t + i * 0.13, 1.8, 0.09);
+            chimeNote(ctx, f * 2, t + i * 0.13, 0.9, 0.02);
+        });
     }
 
     function playCompleteFlash() {
@@ -3768,7 +3942,7 @@
         });
     }
 
-    const wishTreeState = { fruitPool: [], leafFallArr: [], branchGroup: null, scene: null, renderer: null, camera: null };
+    const wishTreeState = { fruitPool: [], leafFallArr: [], branchGroup: null, leafGroup: null, flowerGroup: null, trunk: null, scene: null, renderer: null, camera: null };
 
     function initWishTree() {
         const canvas = document.getElementById("tree-canvas");
@@ -3794,6 +3968,7 @@
         trunk.position.y = -1.8;
         trunk.renderOrder = 0;
         scene.add(trunk);
+        wishTreeState.trunk = trunk;
 
         // 树枝组
         const branchGroup = new THREE.Group();
@@ -3801,7 +3976,11 @@
         scene.add(branchGroup);
         wishTreeState.branchGroup = branchGroup;
 
-        // 创建四个枝叶球
+        // 创建四个枝叶球 (包裹在 leafGroup 中, 随成长阶段缩放)
+        const leafGroup = new THREE.Group();
+        leafGroup.renderOrder = 1;
+        branchGroup.add(leafGroup);
+        wishTreeState.leafGroup = leafGroup;
         const branchDefs = [[-1.4, -1, 1], [1.2, -0.6, 0.85], [-0.6, 1.2, 0.9], [1.3, 0.9, 0.75]];
         branchDefs.forEach(([x, z, scale]) => {
             const leafGeo = new THREE.SphereGeometry(0.8 * scale, 8, 8);
@@ -3811,11 +3990,18 @@
             const leaf = new THREE.Mesh(leafGeo, leafMat);
             leaf.position.set(x, 0, z);
             leaf.renderOrder = 1;
-            branchGroup.add(leaf);
+            leafGroup.add(leaf);
         });
+
+        // 花朵组 (开花/盛放阶段出现, 跟随树枝转动)
+        const flowerGroup = new THREE.Group();
+        flowerGroup.renderOrder = 1;
+        branchGroup.add(flowerGroup);
+        wishTreeState.flowerGroup = flowerGroup;
 
         // 根据今日完成情况初始化果实
         rebuildFruits();
+        applyTreeStage(getTreeStage());
 
         window.addEventListener("resize", () => {
             const w = canvas.clientWidth;
@@ -4025,6 +4211,53 @@
 
     // 暴露全局刷新接口
     window.refreshWishTree = rebuildFruits;
+
+    // ---- 灵树成长阶段 (连续打卡) ----
+    function getTreeStage() {
+        const s = userInfo.streakDays || 0;
+        if (s >= 14) return 3;
+        if (s >= 7) return 2;
+        if (s >= 3) return 1;
+        return 0;
+    }
+
+    function applyTreeStage(stage) {
+        const { trunk, leafGroup, flowerGroup } = wishTreeState;
+        if (!trunk || !leafGroup) return;
+        trunk.scale.set(1, stage === 0 ? 0.62 : 1, 1);
+        leafGroup.scale.setScalar(stage === 0 ? 0.6 : stage >= 2 ? 1.1 : 1);
+        while (flowerGroup.children.length) flowerGroup.remove(flowerGroup.children[0]);
+        if (stage >= 2) {
+            const count = stage >= 3 ? 12 : 6;
+            for (let i = 0; i < count; i++) {
+                const ang = Math.random() * Math.PI * 2;
+                const rad = 0.55 + Math.random() * 0.75;
+                const flower = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.07 + Math.random() * 0.04, 8, 8),
+                    new THREE.MeshBasicMaterial({
+                        color: Math.random() < 0.5 ? 0xF8D9E8 : 0xF5E6F0,
+                        transparent: true, opacity: 0.9, depthWrite: false,
+                    })
+                );
+                flower.position.set(Math.cos(ang) * rad, 0.05 + Math.random() * 0.4, Math.sin(ang) * rad);
+                flowerGroup.add(flower);
+            }
+        }
+        updateStreakText();
+    }
+
+    function updateStreakText() {
+        const el = document.getElementById("tree-streak");
+        if (!el) return;
+        const s = userInfo.streakDays || 0;
+        el.textContent = s > 0
+            ? `连续完成 ${s} 天 · 灵树${TREE_STAGE_NAMES[getTreeStage()]}中`
+            : "连续完成每日任务，灵树将逐渐长大";
+    }
+
+    window.refreshTreeStage = function () {
+        applyTreeStage(getTreeStage());
+    };
 
     // ================================================================
     // ================================================================
