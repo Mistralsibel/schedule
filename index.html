@@ -2443,8 +2443,8 @@
     </div>
 </div>
 
-<!-- ====== THREE.JS ====== -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js">
+<!-- ====== THREE.JS (本地文件, 不再依赖 CDN) ====== -->
+<script src="three.min.js">
 </script>
 
 <script>
@@ -4066,12 +4066,12 @@
         const todayDone = getTodayCompletedTasks();
         const isWither = todayDone.length === 0;
 
-        // 更新枝叶颜色
-        branchGroup.children.forEach(child => {
-            if (child.renderOrder === 1) {
-                child.material.color.set(isWither ? 0xB8A268 : 0x78B978);
-            }
-        });
+        // 更新枝叶颜色 (叶子在 leafGroup 内; branchGroup 中还含 Group, 不可直接取 material)
+        if (wishTreeState.leafGroup) {
+            wishTreeState.leafGroup.children.forEach(child => {
+                if (child.material) child.material.color.set(isWither ? 0xB8A268 : 0x78B978);
+            });
+        }
 
         // 今日无完成 → 枯枝败叶，飘落枯叶
         if (isWither) {
@@ -4272,6 +4272,8 @@
     requestAnimationFrame(() => {
         if (_threeReady) return;
         _threeReady = true;
+        // THREE CDN 加载失败时优雅降级: 3D 装饰不渲染, 核心功能不受影响
+        if (typeof THREE === "undefined") return;
         initBgThree();
         initOrbitThree();
         initWishTree();
@@ -4282,6 +4284,7 @@
     window.onload = () => {
         if (!_threeReady) {
             _threeReady = true;
+            if (typeof THREE === "undefined") return;
             initBgThree();
             initOrbitThree();
             initWishTree();
