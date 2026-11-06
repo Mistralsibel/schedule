@@ -3992,9 +3992,9 @@
         // 树冠球信息 (花朵散布位置)
         wishTreeState.canopy = branchDefs.map(([x, z, s]) => ({ x, z, r: 0.8 * s }));
 
-        // 花朵组 (开花/盛放阶段出现, 跟随树枝转动)
+        // 花朵组 (开花阶段出现, 跟随树枝转动, 渲染在树叶之上)
         const flowerGroup = new THREE.Group();
-        flowerGroup.renderOrder = 1;
+        flowerGroup.renderOrder = 2;
         branchGroup.add(flowerGroup);
         wishTreeState.flowerGroup = flowerGroup;
 
@@ -4257,7 +4257,7 @@
         const petalGeo = new THREE.SphereGeometry(0.085 * size, 6, 6);
         const petalMat = new THREE.MeshBasicMaterial({
             color: Math.random() < 0.55 ? 0xF8D9E8 : 0xF5F0F8,
-            transparent: true, opacity: 0.95, depthWrite: false,
+            transparent: true, opacity: 0.95, depthWrite: false, depthTest: false,
         });
         for (let i = 0; i < 5; i++) {
             const holder = new THREE.Group();
@@ -4271,7 +4271,7 @@
         }
         const center = new THREE.Mesh(
             new THREE.SphereGeometry(0.042 * size, 6, 6),
-            new THREE.MeshBasicMaterial({ color: 0xFFD97A, depthWrite: false })
+            new THREE.MeshBasicMaterial({ color: 0xFFD97A, depthWrite: false, depthTest: false })
         );
         g.add(center);
         return g;
@@ -4293,7 +4293,8 @@
                 const flower = makeFlower(1.1 + Math.random() * 0.5);
                 flower.position.set(
                     (blob.x + Math.cos(ang) * rr) * canopyScale,
-                    blob.r * (0.25 + Math.random() * 0.5) * canopyScale,
+                    // 花朵立于树冠上表面 (0.75r~1.2r), 不被树冠遮挡
+                    blob.r * (0.75 + Math.random() * 0.45) * canopyScale,
                     (blob.z + Math.sin(ang) * rr) * canopyScale
                 );
                 flower.userData.born = performance.now() + idx * 90;
