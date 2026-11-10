@@ -27,8 +27,38 @@
 ## 🚀 运行部署
 1. **本地使用**：浏览器直接打开 `index.html`
 2. **公网分享**：支持部署 Vercel / 阿里云OSS / Gitee Pages 等静态平台
+3. **阿里云 ECS**：
+   - 项目为纯静态，只需 Nginx，无需 Node/数据库
+   - 上传 `index.html`、`three.min.js`、`xlsx.full.min.js`、`assets/` 到服务器
+   - Nginx 配置参考 `deploy/nginx.conf`，Windows 一键上传用 `deploy/deploy.bat`
+   - 大陆服务器绑定域名需 ICP 备案（用 IP 直接访问则不需要）
+   - 详情见下节「ECS 部署步骤」
 
-> ⚠️ 部署提示：使用OSS图片资源需要配置CORS跨域策略
+> ⚠️ 部署提示：全部资源已本地化（three.js/xlsx/背景图/logo），无 CDN 依赖
+
+## ☁️ 阿里云 ECS 部署步骤
+```bash
+# 1. 安装 Nginx (Ubuntu/Debian)
+sudo apt update && sudo apt install -y nginx
+# CentOS/Alibaba Cloud Linux 用: sudo yum install -y nginx
+
+# 2. 创建网站目录
+sudo mkdir -p /var/www/schedule
+
+# 3. 上传文件 (在本地 Windows 执行, 或使用 deploy/deploy.bat)
+#    scp index.html three.min.js xlsx.full.min.js root@服务器IP:/var/www/schedule/
+#    scp -r assets root@服务器IP:/var/www/schedule/
+
+# 4. 配置 Nginx
+sudo cp deploy/nginx.conf /etc/nginx/conf.d/schedule.conf
+sudo nano /etc/nginx/conf.d/schedule.conf   # 修改 server_name 为你的域名或IP
+
+# 5. 生效
+sudo nginx -t && sudo systemctl reload nginx
+
+# 6. 阿里云控制台 → ECS → 安全组: 放行 80 端口 (和 443)
+# 7. 浏览器访问 http://服务器IP 或你的域名
+```
 
 ## 🛠 技术栈
 HTML + CSS + 原生JavaScript + Three.js
